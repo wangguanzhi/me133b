@@ -6,10 +6,12 @@
 #
 #   Places to edit are marked as TODO.
 #
+import time
 import numpy as np
 
 from particle_utilities import Visualization, Robot
 
+np.random.seed(42)
 
 #
 #  Define the Walls
@@ -80,7 +82,6 @@ def updateBelief(priorWeights, particles, probSensor, sensor):
     s = np.sum(postWeights)
     reset = False
     if s == 0.0:
-        print("LOST ALL BELIEF.  STARTING OVER!!!!")
         for particle in particles:
             particle.Reset()
         postWeights = np.ones(len(particles)) / len(particles)
@@ -130,6 +131,140 @@ def precomputeSensorProbability(drow, dcol, probProximal=[1.0]):
 
     # Return the computed grid.
     return prob
+
+
+
+def run_experiment(numParticles=1000, dist_converge_threshold=2, n_steps_kidnap=5, 
+                   probCmd=0.8, probProximal=[0.9, 0.6, 0.3], visual_on=True, verbose=True, max_iter=1000):
+
+    if visual_on:
+        visual = Visualization(walls)
+
+    robot = Robot(walls, probCmd=probCmd, probProximal=probProximal, verbose=verbose)
+
+    # Pre-compute the probability grids for each sensor reading.
+    probUp = precomputeSensorProbability(-1, 0, probProximal)
+    probRight = precomputeSensorProbability(0, 1, probProximal)
+    probDown = precomputeSensorProbability(1, 0, probProximal)
+    probLeft = precomputeSensorProbability(0, -1, probProximal)
+
+    # Start with a uniform belief over all particles.
+    particles = [
+        Robot(walls=walls, probCmd=probCmd, probProximal=probProximal)
+        for _ in range(numParticles)
+    ]
+
+    weights = np.ones(numParticles) / numParticles
+
+    # The performance variables 
+    step_count_converge = 0
+    step_count_reconverge = -n_steps_kidnap
+    step_count_reset_belief = -n_steps_kidnap
+    converged = False
+    belief_reset = False
+    
+
+    # Loop continually.
+    n_iter = 0
+    while n_iter < max_iter:
+        
+        if not converged or (step_count_reconverge >= 0):
+            n_iter += 1
+        
+        # Show the current belief.  Also show the actual position.
+        bel = np.zeros((rows, cols))
+
+        for i, particle in enumerate(particles):
+            bel[particle.row, particle.col] += weights[i]
+            # bel[particle.row, particle.col] += 1 / numParticles
+
+        if visual_on:
+            visual.Show(bel, robot.Position())
+
+        ## Check convergence
+        max_bel = np.max(bel)
+        max_bel_pos = np.unravel_index(np.argmax(bel, axis=None), bel.shape)
+
+        ## L1 distance between actual robot pos and highest confidence position
+        dist = np.sum(np.abs(max_bel_pos - np.array(robot.Position()))) 
+
+        if verbose:
+            print('max belief is ', max_bel, 
+                  ' at ', max_bel_pos, 
+                  '; distance from actual pos =  ', dist,
+                  'step_count_converge = ', step_count_converge,
+                  'step_count_reset_belief = ', step_count_reset_belief,
+                  'step_count_reconverge = ', step_count_reconverge)
+            
+        if max_bel > 0.5 and dist < dist_converge_threshold:
+
+            if converged and step_count_reconverge > 0:
+                break
+
+            if verbose:
+                print('Converged after ', step_count_converge, ' steps')
+
+            converged = True
+
+
+        ## Automatic random movement
+        movements = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        idx = np.random.choice(np.arange(4))
+        (drow, dcol) = movements[idx]
+
+        # Move the robot in the simulation.
+        robot.Command(drow, dcol)
+        if visual_on:
+            time.sleep(0.1)
+
+        # Compute a prediction.
+        computePrediction(particles, drow, dcol)
+
+        # Correct the prediction/execute the measurement update.
+        sensors = [
+            robot.Sensor(-1, 0),
+            robot.Sensor(0, 1),
+            robot.Sensor(1, 0),
+            robot.Sensor(0, -1),
+        ]
+        probSensors = [probUp, probRight, probDown, probLeft]
+        for probSensor, sensor in zip(probSensors, sensors):
+            weights, reset = updateBelief(weights, particles, probSensor, sensor)
+            if reset:
+                if verbose:
+                    print("LOST ALL BELIEF.  STARTING OVER!!!!")
+                if converged:
+                    belief_reset = True
+                break
+
+        # Resample the particles.
+        if 1.0 / np.sum(np.square(weights)) < len(particles) / 2.0:
+            # if verbose:
+            #     print('Resampling')
+            particles = resample(particles, weights, numParticles)
+            weights = np.ones(len(particles)) / len(particles)
+
+
+        if converged:
+            step_count_reconverge += 1
+            if not belief_reset:
+                step_count_reset_belief += 1
+        else:
+            step_count_converge += 1
+
+        ## Kidnapping robot
+        if step_count_reconverge == 0:
+            if verbose:
+                print('Kidnapping')
+            robot.Reset()
+
+
+    print('[Particle Filter] step_count_converge = ', step_count_converge, 
+          ' step_count_reset_belief = ', step_count_reset_belief, 
+          ' step_count_reconverge = ', step_count_reconverge)
+
+    return step_count_converge, step_count_reset_belief, step_count_reconverge
+
 
 
 #
@@ -186,31 +321,59 @@ def main():
 
     # Loop continually.
     while True:
-        # Show the current belief.  Also show the actual position.
-        prob = np.zeros((rows, cols))
-        for particle in particles:
-            prob[particle.row, particle.col] = 1
-        for particle in particles:
-            prob[particle.row, particle.col] -= 0.5 / len(particles)
-        visual.Show(prob, robot.Position())
 
-        # Get the command key to determine the direction.
-        while True:
-            key = input("Cmd (q=quit, i=up, m=down, j=left, k=right) ?")
-            if key == "q":
-                return
-            elif key == "i":
-                (drow, dcol) = (-1, 0)
-                break
-            elif key == "m":
-                (drow, dcol) = (1, 0)
-                break
-            elif key == "j":
-                (drow, dcol) = (0, -1)
-                break
-            elif key == "k":
-                (drow, dcol) = (0, 1)
-                break
+        # Show the current belief.  Also show the actual position.
+        bel = np.zeros((rows, cols))
+
+        for i, particle in enumerate(particles):
+            bel[particle.row, particle.col] += weights[i]
+            # bel[particle.row, particle.col] += 1 / numParticles
+
+        visual.Show(bel, robot.Position())
+
+
+
+        ## Check convergence
+        max_bel = np.max(bel)
+        max_bel_pos = np.unravel_index(np.argmax(bel, axis=None), bel.shape)
+
+        ## L1 distance between actual robot pos and highest confidence position
+        dist = np.sum(np.abs(max_bel_pos - np.array(robot.Position()))) 
+
+        print('max belief is ', max_bel, ' at ', max_bel_pos, '; distance from actual pos: ', dist)
+        if dist < 2:
+            print('Converged')
+
+
+        ## Automatic random movement
+        movements = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        idx = np.random.choice(np.arange(4))
+        (drow, dcol) = movements[idx]
+        
+        ## Get the command key to determine the direction.
+        # while True:
+
+        #     key = input("Cmd (q=quit, w=up, s=down, a=left, d=right) ?")
+        #     if key == "q":
+        #         return
+        #     elif key == "w":
+        #         (drow, dcol) = (-1, 0)
+        #         break
+        #     elif key == "s":
+        #         (drow, dcol) = (1, 0)
+        #         break
+        #     elif key == "a":
+        #         (drow, dcol) = (0, -1)
+        #         break
+        #     elif key == "d":
+        #         (drow, dcol) = (0, 1)
+        #         break
+        #     elif key == 'k':  ## k for kidnap
+        #         key2 = input("Cmd enter new position of robot in the form: y, x ")
+        #         new_pos = key2.split(', ')
+        #         robot.row = int(new_pos[0])
+        #         robot.col = int(new_pos[1])
+        #         break
 
         # Move the robot in the simulation.
         robot.Command(drow, dcol)
@@ -229,13 +392,40 @@ def main():
         for probSensor, sensor in zip(probSensors, sensors):
             weights, reset = updateBelief(weights, particles, probSensor, sensor)
             if reset:
+                print("LOST ALL BELIEF.  STARTING OVER!!!!")
                 break
 
         # Resample the particles.
         if 1.0 / np.sum(np.square(weights)) < len(particles) / 2.0:
+            print('Resampling')
             particles = resample(particles, weights, numParticles)
             weights = np.ones(len(particles)) / len(particles)
 
 
 if __name__ == "__main__":
-    main()
+
+    ## Standard implementation
+    # main()
+
+    ## Run this to see single trial experiment
+    run_experiment()
+
+    ## Mass experiment
+    # n_runs = 1000
+    # ns_particles = [10, 50, 100, 500, 1000, 5000]
+
+    # res_all = np.zeros((n_runs, len(ns_particles), 3))
+
+    # for i in range(n_runs):
+    #     for j, n_particles in enumerate(ns_particles):
+
+    #         print('run = ', i, ' n_particles = ', n_particles)
+    #         step_count_converge, step_count_reset_belief, step_count_reconverge = run_experiment(numParticles=n_particles, 
+    #                                                                                              visual_on=False, 
+    #                                                                                              verbose=False)
+
+    #         res_all[i, j, 0] = step_count_converge
+    #         res_all[i, j, 1] = step_count_reset_belief
+    #         res_all[i, j, 2] = step_count_reconverge
+
+    # np.save('PF_n' + str(n_runs) + '.npy', res_all)

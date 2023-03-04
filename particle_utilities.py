@@ -153,13 +153,28 @@ class Visualization:
             for col in range(self.cols):
                 if self.walls[row, col]:
                     color[row, col, 0:3] = np.array([0.0, 0.0, 0.0])  # Black
+                # else:
+                #     # Shades of pink/purple/blue. Yellow means impossible.
+                #     p = prob[row, col]
+                #     if p == 0:
+                #         color[row, col, 0:3] = np.array([1.0, 1.0, 1.0])
+                #     else:
+                #         color[row, col, 0:3] = np.array([p, 0.0, 0.0])
+
                 else:
                     # Shades of pink/purple/blue. Yellow means impossible.
                     p = prob[row, col]
+                    pmin = 0.9 / self.spots
                     if p == 0:
-                        color[row, col, 0:3] = np.array([1.0, 1.0, 1.0])
+                        color[row, col, 0:3] = np.array([1.0, 1.0, 0.0])
+                    elif p < pmin:
+                        rlevel = 1.0 - p
+                        glevel = 1.0 - p
+                        color[row, col, 0:3] = np.array([rlevel, glevel, 1.0])
                     else:
-                        color[row, col, 0:3] = np.array([p, 0.0, 0.0])
+                        rlevel = 1.0 - p
+                        glevel = pmin / p - pmin
+                        color[row, col, 0:3] = np.array([rlevel, glevel, 1.0])
 
         # Draw the boxes.
         self.content = plt.gca().imshow(
@@ -266,3 +281,36 @@ class Robot:
             self.probProximal,
             verbose=False,
         )
+
+# class Particle:
+
+#     def __init__(self, walls, row_pos=0, col_pos=0):
+
+#         self.row_pos = row_pos
+#         self.col_pos = col_pos
+
+#         while walls[self.row, self.col]:
+#             self.row_pos = random.randrange(0, np.size(walls, axis=0))
+#             self.col_pos = random.randrange(0, np.size(walls, axis=1))
+
+
+# class Particles:
+
+#     def __init__(self, walls, n_particles, n_rows, n_cols):
+
+#         ## Store the row, col, and weight of each particle
+#         self.particles_info = np.zeros((n_particles, 3))
+
+#         self.prob_map = np.zeros((n_rows, n_cols))
+
+#         for i in range(n_particles):
+
+#             particle = Particle(walls)
+            
+#             row_pos = particle.row_pos
+#             col_pos = particle.col_pos
+#             weight_init = 1 / n_particles
+
+#             self.particles_info[i, :] = np.array([row_pos, col_pos, weight_init])
+#             self.prob_map[row_pos, col_pos] += weight_init
+

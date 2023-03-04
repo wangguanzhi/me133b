@@ -197,23 +197,24 @@ class Visualization:
 #    fire at a distance of (index+1).
 #
 class Robot:
-    def __init__(self, walls, row=0, col=0, probCmd=1.0, probProximal=[1.0]):
+    def __init__(self, walls, row=0, col=0, probCmd=1.0, probProximal=[1.0], verbose=False):
         # Check the row/col arguments.
         assert (row >= 0) and (row < np.size(walls, axis=0)), "Illegal row"
         assert (col >= 0) and (col < np.size(walls, axis=1)), "Illegal col"
 
-        # Report.
-        if walls[row, col]:
-            location = " (random location)"
-        else:
-            location = " (at %d, %d)" % (row, col)
-        print(
-            "Starting robot with real probCmd = "
-            + str(probCmd)
-            + " and probProximal = "
-            + str(probProximal)
-            + location
-        )
+        if verbose:
+            # Report.
+            if walls[row, col]:
+                location = " (random location)"
+            else:
+                location = " (at %d, %d)" % (row, col)
+            print(
+                "Starting robot with real probCmd = "
+                + str(probCmd)
+                + " and probProximal = "
+                + str(probProximal)
+                + location
+            )
 
         # Save the walls, the initial location, and the probabilities.
         self.walls = walls
@@ -250,3 +251,11 @@ class Robot:
             if self.walls[self.row + drow * (k + 1), self.col + dcol * (k + 1)]:
                 return random.random() < self.probProximal[k]
         return False
+    
+    def Reset(self):
+        # Pick a valid starting location.
+        self.row = 0
+        self.col = 0
+        while self.walls[self.row, self.col]:
+            self.row = random.randrange(0, np.size(self.walls, axis=0))
+            self.col = random.randrange(0, np.size(self.walls, axis=1))
