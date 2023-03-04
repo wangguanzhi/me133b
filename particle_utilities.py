@@ -282,6 +282,7 @@ class Robot:
             verbose=False,
         )
 
+
 # class Particle:
 
 #     def __init__(self, walls, row_pos=0, col_pos=0):
@@ -306,11 +307,10 @@ class Robot:
 #         for i in range(n_particles):
 
 #             particle = Particle(walls)
-            
+
 #             row_pos = particle.row_pos
 #             col_pos = particle.col_pos
 #             weight_init = 1 / n_particles
 
 #             self.particles_info[i, :] = np.array([row_pos, col_pos, weight_init])
 #             self.prob_map[row_pos, col_pos] += weight_init
-

@@ -9,7 +9,8 @@
 import numpy as np
 import scipy.stats
 import matplotlib as mpl
-mpl.use('macosx')
+
+mpl.use("macosx")
 from AMCL_utilities import Visualization, Robot
 
 
@@ -54,24 +55,38 @@ cols = np.size(walls, axis=1)
 #    particles   List of particles
 #    drow, dcol  Delta in row/col
 #
-def findnumOccupied(particles): # find number of occupied grid cells
+def findnumOccupied(particles):  # find number of occupied grid cells
     tmp = []
     for particle in particles:
-        tmp.append((particle.row,particle.col))
+        tmp.append((particle.row, particle.col))
     numOccupied = len(np.unique(tmp))
     return numOccupied
 
-def computeN(particles): # compute number of particles needed based on Kullback-Leibler distance
+
+def computeN(
+    particles,
+):  # compute number of particles needed based on Kullback-Leibler distance
     k = findnumOccupied(particles)
     print("numOccupied = " + str(k))
     if k == 0:
         print("numOccupied == 0")
         return len(particles)
-    quantile = 0.99 #chi-distribution quantile
-    epsilon = 0.02 #K-L distance difference bound
-    n = (k - 1) / (2 * epsilon) * (1 - 2/(9*(k-1)) + np.sqrt(2/(9*(k-1)))*scipy.stats.norm.ppf(quantile))**3
+    quantile = 0.99  # chi-distribution quantile
+    epsilon = 0.02  # K-L distance difference bound
+    n = (
+        (k - 1)
+        / (2 * epsilon)
+        * (
+            1
+            - 2 / (9 * (k - 1))
+            + np.sqrt(2 / (9 * (k - 1))) * scipy.stats.norm.ppf(quantile)
+        )
+        ** 3
+    )
     n = int(np.ceil(n))
     return n
+
+
 def computePrediction(particles, drow, dcol):
     for particle in particles:
         particle.Command(drow, dcol)
@@ -109,21 +124,43 @@ def updateBelief(priorWeights, particles, probSensor, sensor):
 #    weights    List of weights
 #    numParticles  Number of particles to resample
 #
-def update_w(aveWeights,w_slow,w_fast,alpha_fast,alpha_slow): # not used for right now
-    #aveWeights = np.mean(weights)
-    w_fast = w_fast + alpha_fast * (aveWeights - w_fast) + 0.1 * alpha_fast * (aveWeights - w_fast)*(np.sign(aveWeights - w_fast)+1)
+def update_w(
+    aveWeights, w_slow, w_fast, alpha_fast, alpha_slow
+):  # not used for right now
+    # aveWeights = np.mean(weights)
+    w_fast = (
+        w_fast
+        + alpha_fast * (aveWeights - w_fast)
+        + 0.1 * alpha_fast * (aveWeights - w_fast) * (np.sign(aveWeights - w_fast) + 1)
+    )
     w_slow = w_slow + alpha_slow * (aveWeights - w_slow)
     print("w_fast" + str(w_fast))
     print("w_slow" + str(w_slow))
     print("aveWeights" + str(aveWeights))
     return w_slow, w_fast
 
-def score_resample(particles, weights, numParticles,probCmd,probProximal,walls,aveWeights,prev_aveWeights): # sample based on difference of performance
+
+def score_resample(
+    particles,
+    weights,
+    numParticles,
+    probCmd,
+    probProximal,
+    walls,
+    aveWeights,
+    prev_aveWeights,
+):  # sample based on difference of performance
     new_particles = []
     new_weights = []
-    for i in range(int(numParticles/5 * (prev_aveWeights - aveWeights)/prev_aveWeights)): # num of particles based on difference between previous weights and current weights
-        new_particles.append(Robot(walls=walls, probCmd=probCmd, probProximal=probProximal)) # random sample
-        new_weights.append(aveWeights/2 +0.00000000001) # weight is based on average weight
+    for i in range(
+        int(numParticles / 5 * (prev_aveWeights - aveWeights) / prev_aveWeights)
+    ):  # num of particles based on difference between previous weights and current weights
+        new_particles.append(
+            Robot(walls=walls, probCmd=probCmd, probProximal=probProximal)
+        )  # random sample
+        new_weights.append(
+            aveWeights / 2 + 0.00000000001
+        )  # weight is based on average weight
 
     n = 0
     for particle in particles:
@@ -134,7 +171,8 @@ def score_resample(particles, weights, numParticles,probCmd,probProximal,walls,a
     new_weights = np.array(new_weights)
     return new_particles, new_weights
 
-def KLD_resample(particles, weights, numParticles): # resample based on KL distance
+
+def KLD_resample(particles, weights, numParticles):  # resample based on KL distance
     new_particles = []
     new_weights = []
     indices = np.random.choice(len(weights), numParticles, p=weights)
@@ -142,7 +180,8 @@ def KLD_resample(particles, weights, numParticles): # resample based on KL dista
         new_particles.append(particles[index].Copy())
         new_weights.append(weights[index])
     new_weights = np.array(new_weights)
-    return new_particles , new_weights
+    return new_particles, new_weights
+
 
 #
 #  Pre-compute the Sensor Probability Grid
@@ -180,7 +219,7 @@ def main():
     # TODO... PICK WHAT YOUR LOCALIZATION SHOULD ASSUME:
     # Pick the algorithm assumptions:
     probCmd = 1.0
-    #probCmd = 0.8
+    # probCmd = 0.8
     # probProximal = [1.0]
     probProximal = [0.9, 0.6, 0.3]
     numParticles = 1000
@@ -256,9 +295,8 @@ def main():
                 break
             elif key == "a":
                 robot.Kidnap()
-                print((robot.row,robot.col))
+                print((robot.row, robot.col))
                 break
-
 
         # Move the robot in the simulation.
         robot.Command(drow, dcol)
@@ -282,13 +320,25 @@ def main():
         prev_aveWeights = (prev_aveWeights + aveWeights) / 2
         count = count + 1
         aveWeights = np.mean(weights)
-        w_slow, w_fast = update_w(aveWeights,w_slow,w_fast,alpha_fast,alpha_slow)
-        if prev_aveWeights > 2 * aveWeights: #if the particles with high probability is discarded need sample more particles
-            particles,weights = score_resample(particles, weights, numParticles, probCmd, probProximal, walls,aveWeights,prev_aveWeights)
+        w_slow, w_fast = update_w(aveWeights, w_slow, w_fast, alpha_fast, alpha_slow)
+        if (
+            prev_aveWeights > 2 * aveWeights
+        ):  # if the particles with high probability is discarded need sample more particles
+            particles, weights = score_resample(
+                particles,
+                weights,
+                numParticles,
+                probCmd,
+                probProximal,
+                walls,
+                aveWeights,
+                prev_aveWeights,
+            )
         weights = (1.0 / np.sum(weights)) * weights
         numParticles = computeN(particles)
-        particles,weights = KLD_resample(particles, weights, numParticles)
+        particles, weights = KLD_resample(particles, weights, numParticles)
         weights = (1.0 / np.sum(weights)) * weights
+
 
 if __name__ == "__main__":
     main()

@@ -133,9 +133,16 @@ def precomputeSensorProbability(drow, dcol, probProximal=[1.0]):
     return prob
 
 
-
-def run_experiment(numParticles=1000, dist_converge_threshold=2, n_steps_kidnap=5, 
-                   probCmd=0.8, probProximal=[0.9, 0.6, 0.3], visual_on=True, verbose=True, max_iter=1000):
+def run_experiment(
+    numParticles=1000,
+    dist_converge_threshold=2,
+    n_steps_kidnap=5,
+    probCmd=0.8,
+    probProximal=[0.9, 0.6, 0.3],
+    visual_on=True,
+    verbose=True,
+    max_iter=1000,
+):
 
     if visual_on:
         visual = Visualization(walls)
@@ -156,21 +163,20 @@ def run_experiment(numParticles=1000, dist_converge_threshold=2, n_steps_kidnap=
 
     weights = np.ones(numParticles) / numParticles
 
-    # The performance variables 
+    # The performance variables
     step_count_converge = 0
     step_count_reconverge = -n_steps_kidnap
     step_count_reset_belief = -n_steps_kidnap
     converged = False
     belief_reset = False
-    
 
     # Loop continually.
     n_iter = 0
     while n_iter < max_iter:
-        
+
         if not converged or (step_count_reconverge >= 0):
             n_iter += 1
-        
+
         # Show the current belief.  Also show the actual position.
         bel = np.zeros((rows, cols))
 
@@ -186,26 +192,33 @@ def run_experiment(numParticles=1000, dist_converge_threshold=2, n_steps_kidnap=
         max_bel_pos = np.unravel_index(np.argmax(bel, axis=None), bel.shape)
 
         ## L1 distance between actual robot pos and highest confidence position
-        dist = np.sum(np.abs(max_bel_pos - np.array(robot.Position()))) 
+        dist = np.sum(np.abs(max_bel_pos - np.array(robot.Position())))
 
         if verbose:
-            print('max belief is ', max_bel, 
-                  ' at ', max_bel_pos, 
-                  '; distance from actual pos =  ', dist,
-                  'step_count_converge = ', step_count_converge,
-                  'step_count_reset_belief = ', step_count_reset_belief,
-                  'step_count_reconverge = ', step_count_reconverge)
-            
+            print(
+                "max belief is ",
+                max_bel,
+                " at ",
+                max_bel_pos,
+                "; distance from actual pos =  ",
+                dist,
+                "step_count_converge = ",
+                step_count_converge,
+                "step_count_reset_belief = ",
+                step_count_reset_belief,
+                "step_count_reconverge = ",
+                step_count_reconverge,
+            )
+
         if max_bel > 0.5 and dist < dist_converge_threshold:
 
             if converged and step_count_reconverge > 0:
                 break
 
             if verbose:
-                print('Converged after ', step_count_converge, ' steps')
+                print("Converged after ", step_count_converge, " steps")
 
             converged = True
-
 
         ## Automatic random movement
         movements = [(-1, 0), (1, 0), (0, -1), (0, 1)]
@@ -244,7 +257,6 @@ def run_experiment(numParticles=1000, dist_converge_threshold=2, n_steps_kidnap=
             particles = resample(particles, weights, numParticles)
             weights = np.ones(len(particles)) / len(particles)
 
-
         if converged:
             step_count_reconverge += 1
             if not belief_reset:
@@ -255,16 +267,19 @@ def run_experiment(numParticles=1000, dist_converge_threshold=2, n_steps_kidnap=
         ## Kidnapping robot
         if step_count_reconverge == 0:
             if verbose:
-                print('Kidnapping')
+                print("Kidnapping")
             robot.Reset()
 
-
-    print('[Particle Filter] step_count_converge = ', step_count_converge, 
-          ' step_count_reset_belief = ', step_count_reset_belief, 
-          ' step_count_reconverge = ', step_count_reconverge)
+    print(
+        "[Particle Filter] step_count_converge = ",
+        step_count_converge,
+        " step_count_reset_belief = ",
+        step_count_reset_belief,
+        " step_count_reconverge = ",
+        step_count_reconverge,
+    )
 
     return step_count_converge, step_count_reset_belief, step_count_reconverge
-
 
 
 #
@@ -331,25 +346,29 @@ def main():
 
         visual.Show(bel, robot.Position())
 
-
-
         ## Check convergence
         max_bel = np.max(bel)
         max_bel_pos = np.unravel_index(np.argmax(bel, axis=None), bel.shape)
 
         ## L1 distance between actual robot pos and highest confidence position
-        dist = np.sum(np.abs(max_bel_pos - np.array(robot.Position()))) 
+        dist = np.sum(np.abs(max_bel_pos - np.array(robot.Position())))
 
-        print('max belief is ', max_bel, ' at ', max_bel_pos, '; distance from actual pos: ', dist)
+        print(
+            "max belief is ",
+            max_bel,
+            " at ",
+            max_bel_pos,
+            "; distance from actual pos: ",
+            dist,
+        )
         if dist < 2:
-            print('Converged')
-
+            print("Converged")
 
         ## Automatic random movement
         movements = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         idx = np.random.choice(np.arange(4))
         (drow, dcol) = movements[idx]
-        
+
         ## Get the command key to determine the direction.
         # while True:
 
@@ -397,7 +416,7 @@ def main():
 
         # Resample the particles.
         if 1.0 / np.sum(np.square(weights)) < len(particles) / 2.0:
-            print('Resampling')
+            print("Resampling")
             particles = resample(particles, weights, numParticles)
             weights = np.ones(len(particles)) / len(particles)
 
@@ -420,8 +439,8 @@ if __name__ == "__main__":
     #     for j, n_particles in enumerate(ns_particles):
 
     #         print('run = ', i, ' n_particles = ', n_particles)
-    #         step_count_converge, step_count_reset_belief, step_count_reconverge = run_experiment(numParticles=n_particles, 
-    #                                                                                              visual_on=False, 
+    #         step_count_converge, step_count_reset_belief, step_count_reconverge = run_experiment(numParticles=n_particles,
+    #                                                                                              visual_on=False,
     #                                                                                              verbose=False)
 
     #         res_all[i, j, 0] = step_count_converge

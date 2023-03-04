@@ -127,8 +127,15 @@ def precomputeSensorProbability(drow, dcol, probProximal=[1.0]):
     return prob
 
 
-def run_experiment(dist_converge_threshold=2, n_steps_kidnap=5, 
-                   probCmd=0.8, probProximal=[0.9, 0.6, 0.3], visual_on=True, verbose=True, max_iter=1000):
+def run_experiment(
+    dist_converge_threshold=2,
+    n_steps_kidnap=5,
+    probCmd=0.8,
+    probProximal=[0.9, 0.6, 0.3],
+    visual_on=True,
+    verbose=True,
+    max_iter=1000,
+):
 
     if visual_on:
         visual = Visualization(walls)
@@ -145,7 +152,7 @@ def run_experiment(dist_converge_threshold=2, n_steps_kidnap=5,
     bel = 1.0 - walls
     bel = (1.0 / np.sum(bel)) * bel
 
-    # The performance variables 
+    # The performance variables
     step_count_converge = 0
     step_count_reconverge = -n_steps_kidnap
     step_count_reset_belief = -n_steps_kidnap
@@ -166,17 +173,25 @@ def run_experiment(dist_converge_threshold=2, n_steps_kidnap=5,
         ## Check convergence
         max_bel = np.max(bel)
         max_bel_pos = np.unravel_index(np.argmax(bel, axis=None), bel.shape)
-        
+
         ## L1 distance between actual robot pos and highest confidence position
-        dist = np.sum(np.abs(max_bel_pos - np.array(robot.Position()))) 
+        dist = np.sum(np.abs(max_bel_pos - np.array(robot.Position())))
 
         if verbose:
-            print('max belief is ', max_bel, 
-                  ' at ', max_bel_pos, 
-                  '; distance from actual pos =  ', dist,
-                  'step_count_converge = ', step_count_converge,
-                  'step_count_reset_belief = ', step_count_reset_belief,
-                  'step_count_reconverge = ', step_count_reconverge)
+            print(
+                "max belief is ",
+                max_bel,
+                " at ",
+                max_bel_pos,
+                "; distance from actual pos =  ",
+                dist,
+                "step_count_converge = ",
+                step_count_converge,
+                "step_count_reset_belief = ",
+                step_count_reset_belief,
+                "step_count_reconverge = ",
+                step_count_reconverge,
+            )
 
         if max_bel > 0.5 and dist < dist_converge_threshold:
 
@@ -184,10 +199,9 @@ def run_experiment(dist_converge_threshold=2, n_steps_kidnap=5,
                 break
 
             if verbose:
-                print('Converged after ', step_count_converge, ' steps')
+                print("Converged after ", step_count_converge, " steps")
 
             converged = True
-
 
         ## Automatic random movement
         movements = [(-1, 0), (1, 0), (0, -1), (0, 1)]
@@ -231,13 +245,17 @@ def run_experiment(dist_converge_threshold=2, n_steps_kidnap=5,
         ## Kidnapping robot
         if step_count_reconverge == 0:
             if verbose:
-                print('Kidnapping')
+                print("Kidnapping")
             robot.Reset()
 
-
-    print('[Particle Filter] step_count_converge = ', step_count_converge, 
-          ' step_count_reset_belief = ', step_count_reset_belief, 
-          ' step_count_reconverge = ', step_count_reconverge)
+    print(
+        "[Particle Filter] step_count_converge = ",
+        step_count_converge,
+        " step_count_reset_belief = ",
+        step_count_reset_belief,
+        " step_count_reconverge = ",
+        step_count_reconverge,
+    )
 
     return step_count_converge, step_count_reset_belief, step_count_reconverge
 
@@ -306,11 +324,11 @@ def main():
         # Show where the robot's highest belief and the position corresponding to the highest belief
         max_bel = np.max(bel)
         max_bel_pos = np.unravel_index(np.argmax(bel, axis=None), bel.shape)
-        print('max belief is ', max_bel, ' at ', max_bel_pos)
+        print("max belief is ", max_bel, " at ", max_bel_pos)
 
-        #Check if the robot correctly localizes
+        # Check if the robot correctly localizes
         if max_bel_pos[0] == robot.row and max_bel_pos[1] == robot.col:
-            print('Localized with confidence: ', max_bel)
+            print("Localized with confidence: ", max_bel)
 
         # Get the command key to determine the direction.
         while True:
@@ -329,9 +347,9 @@ def main():
             elif key == "d":
                 (drow, dcol) = (0, 1)
                 break
-            elif key == 'k':  ## k for kidnap
+            elif key == "k":  ## k for kidnap
                 key2 = input("Cmd enter new position of robot in the form: y, x ")
-                new_pos = key2.split(', ')
+                new_pos = key2.split(", ")
                 robot.row = int(new_pos[0])
                 robot.col = int(new_pos[1])
                 break
@@ -371,12 +389,15 @@ if __name__ == "__main__":
 
     for i in range(n_runs):
 
-        print('run = ', i)
-        step_count_converge, step_count_reset_belief, step_count_reconverge = run_experiment(visual_on=False,
-                                                                                             verbose=False)
+        print("run = ", i)
+        (
+            step_count_converge,
+            step_count_reset_belief,
+            step_count_reconverge,
+        ) = run_experiment(visual_on=False, verbose=False)
 
         res_all[i, 0] = step_count_converge
         res_all[i, 1] = step_count_reset_belief
         res_all[i, 2] = step_count_reconverge
 
-    np.save('KF_n' + str(n_runs) + '.npy', res_all)
+    np.save("KF_n" + str(n_runs) + ".npy", res_all)

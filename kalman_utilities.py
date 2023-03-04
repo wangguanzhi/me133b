@@ -197,7 +197,9 @@ class Visualization:
 #    fire at a distance of (index+1).
 #
 class Robot:
-    def __init__(self, walls, row=0, col=0, probCmd=1.0, probProximal=[1.0], verbose=False):
+    def __init__(
+        self, walls, row=0, col=0, probCmd=1.0, probProximal=[1.0], verbose=False
+    ):
         # Check the row/col arguments.
         assert (row >= 0) and (row < np.size(walls, axis=0)), "Illegal row"
         assert (col >= 0) and (col < np.size(walls, axis=1)), "Illegal col"
@@ -251,7 +253,7 @@ class Robot:
             if self.walls[self.row + drow * (k + 1), self.col + dcol * (k + 1)]:
                 return random.random() < self.probProximal[k]
         return False
-    
+
     def Reset(self):
         # Pick a valid starting location.
         self.row = 0
