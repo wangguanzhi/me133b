@@ -95,9 +95,9 @@ def main():
     # Pick the algorithm assumptions:
     cmd_noise = 0.1
     sensor_noise = 0.0
-    num_rays = 360
+    num_rays = 8
     lidar_range = 100
-    num_particles = 100
+    num_particles = 1000
 
     # TODO... PICK WHAT THE "REALITY" SHOULD SIMULATE:
     robot = Robot(
@@ -134,10 +134,7 @@ def main():
 
     while True:
         # Show the current belief.  Also show the actual position.
-        a = time.time()
         visual.Show(robot=robot, particles=particles)
-        b = time.time()
-        print(f"Time to show: {b - a:.3f} seconds.")
 
         # Get the command key to determine the direction.
         while True:
@@ -163,23 +160,14 @@ def main():
         robot.Command(forward, turn)
 
         # Compute a prediction.
-        a = time.time()
         computePrediction(particles, forward, turn)
-        b = time.time()
-        print(f"Time to computePrediction: {b - a:.3f} seconds.")
 
         # Correct the prediction/execute the measurement update.
         robot_sensor_reading = robot.Sensor()
-        a = time.time()
         weights = updateBelief(weights, particles, robot_sensor_reading)
-        b = time.time()
-        print(f"Time to updateBelief: {b - a:.3f} seconds.")
         # Resample the particles.
-        if 1.0 / np.sum(np.square(weights)) < len(particles) / 4.0:
-            a = time.time()
+        if 1.0 / np.sum(np.square(weights)) < len(particles) / 40.0:
             particles = resample(particles, weights, num_particles)
-            b = time.time()
-            print(f"Time to resample: {b - a:.3f} seconds.")
             weights = np.ones(len(particles)) / len(particles)
 
 

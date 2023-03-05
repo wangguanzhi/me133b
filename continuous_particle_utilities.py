@@ -192,11 +192,11 @@ class Robot:
             assert forward == 0, "Cannot move forward and turn"
         x = (
             self.x
-            + (forward + random.gauss(0, self.cmd_noise)) * np.cos(self.heading) * 10
+            + (forward + random.gauss(0, self.cmd_noise)) * np.cos(self.heading) * 20
         )
         y = (
             self.y
-            + (forward + random.gauss(0, self.cmd_noise)) * np.sin(self.heading) * 10
+            + (forward + random.gauss(0, self.cmd_noise)) * np.sin(self.heading) * 20
         )
         col = round(x)
         row = round(self.height - y)
