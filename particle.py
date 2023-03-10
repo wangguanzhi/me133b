@@ -160,7 +160,6 @@ def run_experiment(
         Robot(walls=walls, probCmd=probCmd, probProximal=probProximal)
         for _ in range(numParticles)
     ]
-
     weights = np.ones(numParticles) / numParticles
 
     # The performance variables
@@ -211,10 +210,8 @@ def run_experiment(
             )
 
         if max_bel > 0.5 and dist < dist_converge_threshold:
-
             if converged and step_count_reconverge > 0:
                 break
-
             if verbose:
                 print("Converged after ", step_count_converge, " steps")
 
