@@ -190,23 +190,84 @@ class Robot:
             assert turn == 0, "Cannot move forward and turn"
         if turn != 0:
             assert forward == 0, "Cannot move forward and turn"
-        x = (
+        x_target = (
             self.x
             + (forward + random.gauss(0, self.cmd_noise)) * np.cos(self.heading) * 20
         )
-        y = (
+        y_target = (
             self.y
             + (forward + random.gauss(0, self.cmd_noise)) * np.sin(self.heading) * 20
         )
-        col = round(x)
-        row = round(self.height - y)
-        if (
-            0 <= col < self.width
-            and 0 <= row < self.height
-            and not self.walls[row, col]
-        ):
-            self.x = x
-            self.y = y
+        xc = round(self.x)
+        yc = round(self.y)
+        x = round(x_target)
+        y = round(y_target)
+        if xc == x:
+            slope = float("inf")
+        else:
+            slope = (y - yc) / (x - xc)
+        hit = False
+        if abs(slope) <= 1:
+            if xc <= x:
+                for i in range(xc, x + 1):
+                    j = round(yc + slope * (i - xc))
+                    col = i
+                    row = self.height - j
+                    if (
+                        col < 0
+                        or col >= self.width
+                        or row < 0
+                        or row >= self.height
+                        or self.walls[row, col]
+                    ):
+                        hit = True
+                        break
+            else:
+                for i in range(xc, x - 1, -1):
+                    j = round(yc + slope * (i - xc))
+                    col = i
+                    row = self.height - j
+                    if (
+                        col < 0
+                        or col >= self.width
+                        or row < 0
+                        or row >= self.height
+                        or self.walls[row, col]
+                    ):
+                        hit = True
+                        break
+        else:
+            if yc <= y:
+                for j in range(yc, y + 1):
+                    i = round(xc + (j - yc) / slope)
+                    col = i
+                    row = self.height - j
+                    if (
+                        col < 0
+                        or col >= self.width
+                        or row < 0
+                        or row >= self.height
+                        or self.walls[row, col]
+                    ):
+                        hit = True
+                        break
+            else:
+                for j in range(yc, y - 1, -1):
+                    i = round(xc + (j - yc) / slope)
+                    col = i
+                    row = self.height - j
+                    if (
+                        col < 0
+                        or col >= self.width
+                        or row < 0
+                        or row >= self.height
+                        or self.walls[row, col]
+                    ):
+                        hit = True
+                        break
+        if not hit:
+            self.x = x_target
+            self.y = y_target
         self.heading += (turn + random.gauss(0, self.cmd_noise)) * np.pi / 4
 
     def Sensor(self):
