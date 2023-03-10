@@ -153,13 +153,28 @@ class Visualization:
             for col in range(self.cols):
                 if self.walls[row, col]:
                     color[row, col, 0:3] = np.array([0.0, 0.0, 0.0])  # Black
+                # else:
+                #     # Shades of pink/purple/blue. Yellow means impossible.
+                #     p = prob[row, col]
+                #     if p == 0:
+                #         color[row, col, 0:3] = np.array([1.0, 1.0, 1.0])
+                #     else:
+                #         color[row, col, 0:3] = np.array([p, 0.0, 0.0])
+
                 else:
                     # Shades of pink/purple/blue. Yellow means impossible.
                     p = prob[row, col]
+                    pmin = 0.9 / self.spots
                     if p == 0:
-                        color[row, col, 0:3] = np.array([1.0, 1.0, 1.0])
+                        color[row, col, 0:3] = np.array([1.0, 1.0, 0.0])
+                    elif p < pmin:
+                        rlevel = 1.0 - p
+                        glevel = 1.0 - p
+                        color[row, col, 0:3] = np.array([rlevel, glevel, 1.0])
                     else:
-                        color[row, col, 0:3] = np.array([p, 0.0, 0.0])
+                        rlevel = 1.0 - p
+                        glevel = pmin / p - pmin
+                        color[row, col, 0:3] = np.array([rlevel, glevel, 1.0])
 
         # Draw the boxes.
         self.content = plt.gca().imshow(

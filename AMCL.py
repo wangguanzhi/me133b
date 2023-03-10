@@ -268,35 +268,79 @@ def main():
 
     # Loop continually.
     while True:
-        # Show the current belief.  Also show the actual position.
-        prob = np.zeros((rows, cols))
-        for particle in particles:
-            prob[particle.row, particle.col] = 1
-        for particle in particles:
-            prob[particle.row, particle.col] -= 0.5 / len(particles)
-        visual.Show(prob, robot.Position())
+        # # Show the current belief.  Also show the actual position.
+        # prob = np.zeros((rows, cols))
+        # for particle in particles:
+        #     prob[particle.row, particle.col] = 1
+        # for particle in particles:
+        #     prob[particle.row, particle.col] -= 0.5 / len(particles)
 
-        # Get the command key to determine the direction.
+        # visual.Show(prob, robot.Position())
+
+
+        # Show the current belief.  Also show the actual position.
+        bel = np.zeros((rows, cols))
+
+        for i, particle in enumerate(particles):
+            bel[particle.row, particle.col] += weights[i]
+            # bel[particle.row, particle.col] += 1 / numParticles
+
+        visual.Show(bel, robot.Position())
+
+        ## Check convergence
+        max_bel = np.max(bel)
+        max_bel_pos = np.unravel_index(np.argmax(bel, axis=None), bel.shape)
+
+        ## L1 distance between actual robot pos and highest confidence position
+        dist = np.sum(np.abs(max_bel_pos - np.array(robot.Position())))
+
+        print(
+            "max belief is ",
+            max_bel,
+            " at ",
+            max_bel_pos,
+            "; distance from actual pos: ",
+            dist,
+        )
+        if dist < 2:
+            print("Converged")
+
+
+        ## Automatic random movement
+        # movements = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        # idx = np.random.choice(np.arange(4))
+        # (drow, dcol) = movements[idx]
+
+
+        ## Get the command key to determine the direction.
         while True:
-            key = input("Cmd (q=quit, i=up, m=down, j=left, k=right) ?")
+
+            key = input("Cmd (q=quit, w=up, s=down, a=left, d=right) ?")
             if key == "q":
                 return
-            elif key == "i":
+            elif key == "w":
                 (drow, dcol) = (-1, 0)
                 break
-            elif key == "m":
+            elif key == "s":
                 (drow, dcol) = (1, 0)
                 break
-            elif key == "j":
+            elif key == "a":
                 (drow, dcol) = (0, -1)
                 break
-            elif key == "k":
+            elif key == "d":
                 (drow, dcol) = (0, 1)
                 break
-            elif key == "a":
-                robot.Kidnap()
-                print((robot.row, robot.col))
+            elif key == 'k':  ## k for kidnap
+                key2 = input("Cmd enter new position of robot in the form: y, x ")
+                new_pos = key2.split(', ')
+                robot.row = int(new_pos[0])
+                robot.col = int(new_pos[1])
+
+                # robot.Kidnap()
+                # print((robot.row, robot.col))
+
                 break
+        
 
         # Move the robot in the simulation.
         robot.Command(drow, dcol)
@@ -321,9 +365,9 @@ def main():
         count = count + 1
         aveWeights = np.mean(weights)
         w_slow, w_fast = update_w(aveWeights, w_slow, w_fast, alpha_fast, alpha_slow)
-        if (
-            prev_aveWeights > 2 * aveWeights
-        ):  # if the particles with high probability is discarded need sample more particles
+
+        # if the particles with high probability is discarded need sample more particles
+        if prev_aveWeights > 2 * aveWeights:
             particles, weights = score_resample(
                 particles,
                 weights,
@@ -332,8 +376,8 @@ def main():
                 probProximal,
                 walls,
                 aveWeights,
-                prev_aveWeights,
-            )
+                prev_aveWeights)
+            
         weights = (1.0 / np.sum(weights)) * weights
         numParticles = computeN(particles)
         particles, weights = KLD_resample(particles, weights, numParticles)
