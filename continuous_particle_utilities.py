@@ -283,7 +283,7 @@ class Robot:
                 slope = float("inf")
             else:
                 slope = (y - yc) / (x - xc)
-            distance = self.lidar_range
+            distance = 2 * self.lidar_range
             if abs(slope) <= 1:
                 if xc <= x:
                     for i in range(xc, x + 1):
