@@ -147,7 +147,7 @@ def test_AMCL(n_runs,
                         len(ns_particles), 
                         len(resample_threshold_factors),
                         len(n_particles_factors),
-                        len(aveWeights_factor), 5))
+                        len(aveWeights_factors), 5))
 
     for a, n_particles in enumerate(ns_particles):
         for b, resample_threshold_factor in enumerate(resample_threshold_factors):
@@ -186,23 +186,80 @@ def test_AMCL(n_runs,
     np.save(save_path, res_all)
 
 
-def test_CPF():
-    pass
+def test_CPF(n_runs, 
+             ns_particles,
+             lidar_ranges,
+             ns_rays,
+             resampling_constants,
+             sensor_diff_powers,
+             reset_belief_thresholds,
+             save_path):
+
+    ## Define arguments
+    dist_positon_threshold = 100
+    dist_angle_threshold = 5
+    n_steps_kidnap = 5
+    cmd_noise = 0.1
+    sensor_noise = 0.0
+    visual_on = False
+    verbose = False
+    max_iter = 1000
+
+    ## Run experiment with multiprocessing
+    res_all = np.zeros((n_runs, 
+                        len(ns_particles), 
+                        len(lidar_ranges),
+                        len(ns_rays),
+                        len(resampling_constants),
+                        len(sensor_diff_powers),
+                        len(reset_belief_thresholds), 4))
+
+    for a, n_particles in enumerate(ns_particles):
+        for b, lidar_range in enumerate(lidar_ranges):
+            for c, n_rays in enumerate(ns_rays):
+                for d, resampling_constant in enumerate(resampling_constants):
+                    for e, sensor_diff_power in enumerate(sensor_diff_powers):
+                        for f, reset_belief_threshold in enumerate(reset_belief_thresholds):
+                    
+                            print("n_particles = ", n_particles, 
+                                  "lidar_range = ", lidar_range,
+                                  "n_rays = ", n_rays,
+                                  " resampling_constant = ", resampling_constant,
+                                  " sensor_diff_power = ", sensor_diff_power,
+                                  " reset_belief_threshold = ", reset_belief_threshold)
+
+                            ## Format arguments
+                            arguments = []
+
+                            for i in range(n_runs):
+                                arguments.append((
+                                    n_particles,
+                                    lidar_range,
+                                    n_rays,
+                                    resampling_constant,
+                                    sensor_diff_power,
+                                    reset_belief_threshold,
+                                    dist_positon_threshold,
+                                    dist_angle_threshold,
+                                    n_steps_kidnap,
+                                    cmd_noise,
+                                    sensor_noise,
+                                    visual_on,
+                                    verbose,
+                                    max_iter))
+
+                            ## Run experiment with multiprocessing
+                            results = multiprocessing_wrapper(CPF.run_experiment, arguments)
+
+                            ## Process results
+                            for i, result in enumerate(results):
+                                res_all[i, a, b, c, d, e, f, :] = np.array(result)
+
+    np.save(save_path, res_all)
 
 
 def test_CAMCL():
     pass
-
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
@@ -222,19 +279,41 @@ if __name__ == '__main__':
     # test_PF(n_runs, ns_particles, resampling_constants, save_path)
 
     ## Test Adaptive Monte Carlo
-    n_runs = 1000
-    ns_particles = [10, 50, 100, 500]
-    resample_threshold_factors = []
-    n_particles_factors = []
-    aveWeights_factors = [] 
-    save_path = 'AMCL_n' + str(n_runs) + '.npy'
-    test_PF(n_runs, 
-            ns_particles, 
-            resample_threshold_factors, 
-            n_particles_factors, 
-            aveWeights_factors, 
-            save_path)
+    # n_runs = 1000
+    # ns_particles = [10, 100, 1000]
+    # resample_threshold_factors = [1.2, 1.5, 2, 2.5]
+    # n_particles_factors = [1, 2.5, 5]
+    # aveWeights_factors = [1, 1.5, 2, 3] 
+    # save_path = 'AMCL_n' + str(n_runs) + '.npy'
+    # test_AMCL(n_runs, 
+    #           ns_particles, 
+    #           resample_threshold_factors, 
+    #           n_particles_factors, 
+    #           aveWeights_factors, 
+    #           save_path)
     
+    ## Test continuous Particle filter
+    n_runs = 100
+    # ns_particles = [100, 500, 1000, 5000]
+    # lidar_ranges = [50, 150, 300]
+    # ns_rays = [8, 12, 20]
+    resampling_constants = [5, 10, 20, 40]
+    sensor_diff_powers = [1, 1.5, 2]
+    reset_belief_thresholds = [1e-6, 1e-8, 1e-10]
 
-    
+    ns_particles = [1000]
+    lidar_ranges = [150]
+    ns_rays = [8]
+    # resampling_constants = [10]
+    # sensor_diff_powers = [2]
+    # reset_belief_thresholds = [1e-8]
 
+    save_path = 'CPF_n' + str(n_runs) + '_1.npy'
+    test_CPF(n_runs, 
+             ns_particles,
+             lidar_ranges,
+             ns_rays,
+             resampling_constants, 
+             sensor_diff_powers, 
+             reset_belief_thresholds, 
+             save_path)

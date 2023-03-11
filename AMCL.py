@@ -398,14 +398,15 @@ def run_experiment(
                 print("Kidnapping")
             robot.Reset()
 
-    print(
-        "[Particle Filter] step_count_converge = ",
-        step_count_converge,
-        " step_count_reset_belief = ",
-        step_count_reset_belief,
-        " step_count_reconverge = ",
-        step_count_reconverge,
-    )
+    if verbose:
+        print(
+            "[Particle Filter] step_count_converge = ",
+            step_count_converge,
+            " step_count_reset_belief = ",
+            step_count_reset_belief,
+            " step_count_reconverge = ",
+            step_count_reconverge,
+        )
 
     return sum(n_particles_list), step_count_converge, step_count_reset_belief, step_count_reconverge, time.time() - time_start
 

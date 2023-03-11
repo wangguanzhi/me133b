@@ -135,9 +135,9 @@ class Robot:
         heading=0,
         cmd_noise=0.1,
         sensor_noise=0.1,
-        num_rays=360,
+        n_rays=360,
         lidar_range=100,
-        step_size=4,
+        step_size=1,
         verbose=False,
     ):
         self.walls = walls
@@ -169,7 +169,7 @@ class Robot:
         self.heading = heading
         self.cmd_noise = cmd_noise
         self.sensor_noise = sensor_noise
-        self.num_rays = num_rays
+        self.n_rays = n_rays
         self.lidar_range = lidar_range
         self.step_size = step_size
 
@@ -280,8 +280,8 @@ class Robot:
     def Sensor(self):
         noise = 0.0 if self.sensor_noise is None else self.sensor_noise
         distances = []
-        for i in range(self.num_rays):
-            angle = self.heading + i * 2 * np.pi / self.num_rays
+        for i in range(self.n_rays):
+            angle = self.heading + i * 2 * np.pi / self.n_rays
             xc = round(self.x)
             yc = round(self.y)
             x = round(self.x + self.lidar_range * np.cos(angle))
@@ -349,7 +349,7 @@ class Robot:
             self.heading,
             self.cmd_noise,
             self.sensor_noise,
-            self.num_rays,
+            self.n_rays,
             self.lidar_range,
             verbose=False,
         )

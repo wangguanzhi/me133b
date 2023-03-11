@@ -34,7 +34,7 @@ w = [
     "x          xxxxx                    x      xxxxxx",
     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 ]
-scale = 50
+scale = 25
 walls = np.array([[1.0 * (c == "x") for c in s] for s in w]).astype(np.uint8)
 width = int(walls.shape[1] * scale)
 height = int(walls.shape[0] * scale)
@@ -47,7 +47,7 @@ def computePrediction(particles, forward, turn):
         particle.Command(forward, turn)
 
 
-def updateBelief(priorWeights, particles, robot_sensor_reading, reset_belief_threshold=1e-6):
+def updateBelief(priorWeights, particles, robot_sensor_reading, sensor_diff_power=2, reset_belief_threshold=1e-8, verbose=True):
 
     particle_sensor_readings = []
     for particle in particles:
@@ -57,14 +57,16 @@ def updateBelief(priorWeights, particles, robot_sensor_reading, reset_belief_thr
     l2_distance = np.linalg.norm(
         np.array(robot_sensor_reading) - particle_sensor_readings, axis=1
     )
-    weights = 1.0 / (1.0 + l2_distance)
+    weights = 1.0 / (1.0 + np.power(l2_distance, sensor_diff_power))
 
     postWeights = priorWeights * weights
 
-    # Normalize.
+    # # Normalize.
     median_weight = np.median(postWeights)
     if median_weight < reset_belief_threshold:
-        print("Resetting belief for bad particles.")
+        if verbose:
+            print("Resetting belief for bad particles.")
+
         for i, particle in enumerate(particles):
             if postWeights[i] < reset_belief_threshold:
                 particle.Reset()
@@ -73,6 +75,21 @@ def updateBelief(priorWeights, particles, robot_sensor_reading, reset_belief_thr
     s = np.sum(postWeights)
     postWeights = (1.0 / s) * postWeights
     return postWeights
+
+
+    # Normalize.
+    # s = np.sum(postWeights)
+    # reset = False
+    # if s == 0.0:
+    #     print("LOST ALL BELIEF.  STARTING OVER!!!!")
+    #     for particle in particles:
+    #         particle.Reset()
+    #     postWeights = np.ones(len(particles)) / len(particles)
+    #     s = np.sum(postWeights)
+    #     reset = True
+
+    # postWeights = (1.0 / s) * postWeights
+    # return postWeights, reset
 
 
 def resample(particles, weights, numParticles):
@@ -86,22 +103,24 @@ def resample(particles, weights, numParticles):
 
 
 
-
-
 def run_experiment(
-    num_particles=1000,
-    cmd_noise = 0.1,
-    sensor_noise = 0.0,
-    num_rays = 8,
-    lidar_range = 300,
-    dist_positon_threshold=100,
+    n_particles=1000,
+    lidar_range = 150,
+    n_rays = 8,
+    resampling_constant=10,
+    sensor_diff_power=2,
+    reset_belief_threshold=1e-8,
+    dist_positon_threshold=50,
     dist_angle_threshold=5,
     n_steps_kidnap=5,
-    resampling_constant=5.0,
+    cmd_noise = 0.1,
+    sensor_noise = 0.0,
     visual_on=True,
     verbose=True,
     max_iter=1000,
 ):
+    
+    time_start = time.time()
 
     if visual_on:
         visual = Visualization(walls)
@@ -113,7 +132,7 @@ def run_experiment(
         # heading=0,
         cmd_noise=cmd_noise,
         sensor_noise=sensor_noise,
-        num_rays=num_rays,
+        n_rays=n_rays,
         lidar_range=lidar_range,
         verbose=False,
     )
@@ -127,13 +146,13 @@ def run_experiment(
             heading=0,
             cmd_noise=cmd_noise,
             sensor_noise=None,
-            num_rays=num_rays,
+            n_rays=n_rays,
             lidar_range=lidar_range,
             verbose=False,
         )
-        for _ in range(num_particles)
+        for _ in range(n_particles)
     ]
-    weights = np.ones(num_particles) / num_particles
+    weights = np.ones(n_particles) / n_particles
 
     # The performance variables
     step_count_converge = 0
@@ -155,16 +174,14 @@ def run_experiment(
         robot_position = robot_q[0:2]
         robot_heading = np.degrees(robot_q[2]) % 360
 
-        particle_qs = np.zeros((num_particles, 3))
+        particle_qs = np.zeros((n_particles, 3))
         for i, particle in enumerate(particles):
             particle_qs[i, :] = particle.get_q()
 
         particle_positions = particle_qs[:, 0:2]
         particle_headings = np.degrees(particle_qs[:, 2]) % 360
 
-        # particle_headings[particle_headings > 180] -= 360
-
-        # if robot_heading > 180
+        ## TODO: May need to improve angle difference calculation here
 
 
         dist_position = np.sqrt(np.sum(np.square(particle_positions - robot_position), axis=1))
@@ -174,7 +191,7 @@ def run_experiment(
 
         perc_converge = np.sum(np.all([dist_heading < dist_angle_threshold,
                                        dist_position < dist_positon_threshold],
-                                      axis=0)) / num_particles
+                                      axis=0)) / n_particles
 
 
         if verbose:
@@ -200,9 +217,7 @@ def run_experiment(
 
 
         ## Automatic random movement
-        movements = [(1, 0), (1, 0), (1, 0),
-                     (-1, 0),
-                     (0, -1), (0, 1)]
+        movements = [(1, 0), (1, 0), (-1, 0), (0, -1), (0, 1)]
         idx = np.random.choice(np.arange(len(movements)))
         (forward, turn) = movements[idx]
 
@@ -232,11 +247,11 @@ def run_experiment(
 
         # Correct the prediction/execute the measurement update.
         robot_sensor_reading = robot.Sensor()
-        weights = updateBelief(weights, particles, robot_sensor_reading)
+        weights = updateBelief(weights, particles, robot_sensor_reading, sensor_diff_power, reset_belief_threshold, verbose=verbose)
 
         # Resample the particles.
         if 1.0 / np.sum(np.square(weights)) < len(particles) / resampling_constant:
-            particles = resample(particles, weights, num_particles)
+            particles = resample(particles, weights, n_particles)
             weights = np.ones(len(particles)) / len(particles)
 
         if converged:
@@ -252,16 +267,17 @@ def run_experiment(
                 print("Kidnapping")
             robot.Reset()
 
-    print(
-        "[Continuous Particle Filter] step_count_converge = ",
-        step_count_converge,
-        " step_count_reset_belief = ",
-        step_count_reset_belief,
-        " step_count_reconverge = ",
-        step_count_reconverge,
-    )
+    if verbose:
+        print(
+            "[Continuous Particle Filter] step_count_converge = ",
+            step_count_converge,
+            " step_count_reset_belief = ",
+            step_count_reset_belief,
+            " step_count_reconverge = ",
+            step_count_reconverge,
+        )
 
-    return step_count_converge, step_count_reset_belief, step_count_reconverge
+    return step_count_converge, step_count_reset_belief, step_count_reconverge, time.time() - time_start
 
 
 
@@ -281,9 +297,9 @@ def main():
     # Pick the algorithm assumptions:
     cmd_noise = 0.1
     sensor_noise = 0.0
-    num_rays = 8
+    n_rays = 8
     lidar_range = 100
-    num_particles = 1000
+    n_particles = 1000
     reset_belief_threshold = 1e-6
 
     # TODO... PICK WHAT THE "REALITY" SHOULD SIMULATE:
@@ -294,7 +310,7 @@ def main():
         heading=0,
         cmd_noise=cmd_noise,
         sensor_noise=sensor_noise,
-        num_rays=num_rays,
+        n_rays=n_rays,
         lidar_range=lidar_range,
         verbose=False,
     )
@@ -308,38 +324,47 @@ def main():
             heading=0,
             cmd_noise=cmd_noise,
             sensor_noise=None,
-            num_rays=num_rays,
+            n_rays=n_rays,
             lidar_range=lidar_range,
             verbose=False,
         )
-        for _ in range(num_particles)
+        for _ in range(n_particles)
     ]
-    weights = np.ones(num_particles) / num_particles
+    weights = np.ones(n_particles) / n_particles
 
     # Loop continually.
     while True:
         # Show the current belief.  Also show the actual position.
         visual.Show(robot=robot, particles=particles)
 
+        ## Automatic random movement
+        movements = [(1, 0), (1, 0), (1, 0),
+                 (-1, 0),
+                 (0, -1), (0, 1)]
+        idx = np.random.choice(np.arange(len(movements)))
+        (forward, turn) = movements[idx]
+        
+
         # Get the command key to determine the direction.
-        while True:
-            key = input(
-                "Cmd (q=quit, w=forward, s=backward, a=turn_left, d=turn_right) ?"
-            )
-            if key == "q":
-                return
-            elif key == "w":
-                (forward, turn) = (1, 0)
-                break
-            elif key == "s":
-                (forward, turn) = (-1, 0)
-                break
-            elif key == "a":
-                (forward, turn) = (0, 1)
-                break
-            elif key == "d":
-                (forward, turn) = (0, -1)
-                break
+        # while True:
+
+        #     key = input(
+        #         "Cmd (q=quit, w=forward, s=backward, a=turn_left, d=turn_right) ?"
+        #     )
+        #     if key == "q":
+        #         return
+        #     elif key == "w":
+        #         (forward, turn) = (1, 0)
+        #         break
+        #     elif key == "s":
+        #         (forward, turn) = (-1, 0)
+        #         break
+        #     elif key == "a":
+        #         (forward, turn) = (0, 1)
+        #         break
+        #     elif key == "d":
+        #         (forward, turn) = (0, -1)
+        #         break
 
         # Move the robot in the simulation.
         robot.Command(forward, turn)
@@ -352,10 +377,10 @@ def main():
         weights = updateBelief(weights, particles, robot_sensor_reading, reset_belief_threshold)
         # Resample the particles.
         if 1.0 / np.sum(np.square(weights)) < len(particles) / 40.0:
-            particles = resample(particles, weights, num_particles)
+            particles = resample(particles, weights, n_particles)
             weights = np.ones(len(particles)) / len(particles)
 
 
 if __name__ == "__main__":
     # main()
-    run_experiment(visual_on=True)
+    run_experiment()
