@@ -132,10 +132,11 @@ def run_experiment(
     n_steps_kidnap=5,
     probCmd=0.8,
     probProximal=[0.9, 0.6, 0.3],
-    visual_on=True,
-    verbose=True,
+    visual_on=False,
+    verbose=False,
     max_iter=1000,
 ):
+    time_start = time.time()
 
     if visual_on:
         visual = Visualization(walls)
@@ -248,16 +249,17 @@ def run_experiment(
                 print("Kidnapping")
             robot.Reset()
 
-    print(
-        "[Particle Filter] step_count_converge = ",
-        step_count_converge,
-        " step_count_reset_belief = ",
-        step_count_reset_belief,
-        " step_count_reconverge = ",
-        step_count_reconverge,
-    )
+    if verbose:
+        print(
+            "[Particle Filter] step_count_converge = ",
+            step_count_converge,
+            " step_count_reset_belief = ",
+            step_count_reset_belief,
+            " step_count_reconverge = ",
+            step_count_reconverge,
+        )
 
-    return step_count_converge, step_count_reset_belief, step_count_reconverge
+    return step_count_converge, step_count_reset_belief, step_count_reconverge, time.time() - time_start
 
 
 #
