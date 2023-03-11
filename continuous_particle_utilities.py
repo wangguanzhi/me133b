@@ -68,7 +68,7 @@ class Visualization:
             Circle((col, row), robot.lidar_range, color="g", fill=False, linewidth=2)
         )
 
-    def MarkParticles(self, particles):
+    def MarkParticles(self, particles, particle_weights):
         if self.mark_particles is not None:
             self.mark_particles.remove()
             self.mark_particles = None
@@ -110,7 +110,7 @@ class Visualization:
             zorder=0,
         )
 
-    def Show(self, robot=None, particles=None):
+    def Show(self, robot=None, particles=None, particle_weights=None):
         # Update the content.
         self.Grid()
 
@@ -119,8 +119,8 @@ class Visualization:
             self.MarkRobot(robot)
 
         # Potentially add the particles.
-        if particles is not None:
-            self.MarkParticles(particles)
+        if particles is not None and particle_weights is not None:
+            self.MarkParticles(particles, particle_weights)
 
         # Flush the figure.
         self.Flush()
@@ -183,6 +183,11 @@ class Robot:
             self.x = x
             self.y = y
             self.heading = random.random() * 2 * np.pi
+
+
+    def get_q(self):
+        return np.array([self.x, self.y, self.heading])
+
 
     def Command(self, forward=0, turn=0):
         assert (abs(forward) <= 1) and (abs(turn) <= 1), "Bad command"

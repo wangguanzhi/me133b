@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import cv2
 from continuous_particle_utilities import Visualization, Robot
@@ -84,6 +85,192 @@ def resample(particles, weights, numParticles):
     return new_particles
 
 
+
+
+
+
+def run_experiment(
+    num_particles=1000,
+    cmd_noise = 0.1,
+    sensor_noise = 0.0,
+    num_rays = 8,
+    lidar_range = 300,
+    dist_positon_threshold=100,
+    dist_angle_threshold=5,
+    n_steps_kidnap=5,
+    resampling_constant=5.0,
+    visual_on=True,
+    verbose=True,
+    max_iter=1000,
+):
+
+    if visual_on:
+        visual = Visualization(walls)
+
+    robot = Robot(
+        walls,
+        # x=600,
+        # y=200,
+        # heading=0,
+        cmd_noise=cmd_noise,
+        sensor_noise=sensor_noise,
+        num_rays=num_rays,
+        lidar_range=lidar_range,
+        verbose=False,
+    )
+
+    # Start with a uniform belief over all particles.
+    particles = [
+        Robot(
+            walls,
+            x=0,
+            y=0,
+            heading=0,
+            cmd_noise=cmd_noise,
+            sensor_noise=None,
+            num_rays=num_rays,
+            lidar_range=lidar_range,
+            verbose=False,
+        )
+        for _ in range(num_particles)
+    ]
+    weights = np.ones(num_particles) / num_particles
+
+    # The performance variables
+    step_count_converge = 0
+    step_count_reconverge = -n_steps_kidnap
+    step_count_reset_belief = -n_steps_kidnap
+    converged = False
+    belief_reset = False
+
+    # Loop continually.
+    n_iter = 0
+    while n_iter < max_iter:
+        # Show the current belief.  Also show the actual position.
+
+        if visual_on:
+            visual.Show(robot=robot, particles=particles, particle_weights=weights)
+
+        ## Check convergence
+        robot_q = robot.get_q()
+        robot_position = robot_q[0:2]
+        robot_heading = np.degrees(robot_q[2]) % 360
+
+        particle_qs = np.zeros((num_particles, 3))
+        for i, particle in enumerate(particles):
+            particle_qs[i, :] = particle.get_q()
+        
+        particle_positions = particle_qs[:, 0:2]
+        particle_headings = np.degrees(particle_qs[:, 2]) % 360
+
+        # particle_headings[particle_headings > 180] -= 360
+
+        # if robot_heading > 180
+
+
+        dist_position = np.sqrt(np.sum(np.square(particle_positions - robot_position), axis=1))
+        dist_heading = np.abs(particle_headings - robot_heading)
+
+        dist_heading 
+
+        perc_converge = np.sum(np.all([dist_heading < dist_angle_threshold, 
+                                       dist_position < dist_positon_threshold], 
+                                      axis=0)) / num_particles
+
+
+        if verbose:
+            print('avg dist_position = ', np.mean(dist_position), 
+                  ' avg dist_heading = ', np.mean(dist_heading))
+
+
+            print('percent particles converging = ', perc_converge,
+                "step_count_converge = ",
+                step_count_converge,
+                "step_count_reset_belief = ",
+                step_count_reset_belief,
+                "step_count_reconverge = ",
+                step_count_reconverge,
+            )
+
+        if perc_converge > 0.5:
+            if converged and step_count_reconverge > 0:
+                break
+            if verbose:
+                print('Converged after ', step_count_converge, ' steps')
+            converged = True
+        
+
+        ## Automatic random movement
+        movements = [(1, 0), (1, 0), (1, 0),
+                     (-1, 0),
+                     (0, -1), (0, 1)]
+        idx = np.random.choice(np.arange(len(movements)))
+        (forward, turn) = movements[idx]
+
+        # Get the command key to determine the direction.
+        # while True:
+        #     key = input("Cmd (q=quit, w=forward, s=backward, a=turn_left, d=turn_right) ?")
+        #     if key == "q":
+        #         return
+        #     elif key == "w":
+        #         (forward, turn) = (1, 0)
+        #         break
+        #     elif key == "s":
+        #         (forward, turn) = (-1, 0)
+        #         break
+        #     elif key == "a":
+        #         (forward, turn) = (0, 1)
+        #         break
+        #     elif key == "d":
+        #         (forward, turn) = (0, -1)
+        #         break
+
+        # Move the robot in the simulation.
+        robot.Command(forward, turn)
+
+        # Compute a prediction.
+        computePrediction(particles, forward, turn)
+
+        # Correct the prediction/execute the measurement update.
+        robot_sensor_reading = robot.Sensor()
+        weights = updateBelief(weights, particles, robot_sensor_reading)
+
+        # Resample the particles.
+        if 1.0 / np.sum(np.square(weights)) < len(particles) / resampling_constant:
+            particles = resample(particles, weights, num_particles)
+            weights = np.ones(len(particles)) / len(particles)
+
+        if converged:
+            step_count_reconverge += 1
+            if not belief_reset:
+                step_count_reset_belief += 1
+        else:
+            step_count_converge += 1
+
+        ## Kidnapping robot
+        if step_count_reconverge == 0:
+            if verbose:
+                print("Kidnapping")
+            robot.Reset()
+
+    print(
+        "[Continuous Particle Filter] step_count_converge = ",
+        step_count_converge,
+        " step_count_reset_belief = ",
+        step_count_reset_belief,
+        " step_count_reconverge = ",
+        step_count_reconverge,
+    )
+
+    return step_count_converge, step_count_reset_belief, step_count_reconverge
+
+
+
+
+
+
+
+
 #
 #  Main Code
 #
@@ -130,8 +317,6 @@ def main():
     weights = np.ones(num_particles) / num_particles
 
     # Loop continually.
-    import time
-
     while True:
         # Show the current belief.  Also show the actual position.
         visual.Show(robot=robot, particles=particles)
@@ -172,4 +357,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    run_experiment(visual_on=True)
