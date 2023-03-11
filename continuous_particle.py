@@ -47,7 +47,7 @@ def computePrediction(particles, forward, turn):
         particle.Command(forward, turn)
 
 
-def updateBelief(priorWeights, particles, robot_sensor_reading):
+def updateBelief(priorWeights, particles, robot_sensor_reading, reset_belief_threshold=1e-6):
 
     particle_sensor_readings = []
     for particle in particles:
@@ -62,16 +62,15 @@ def updateBelief(priorWeights, particles, robot_sensor_reading):
     postWeights = priorWeights * weights
 
     # Normalize.
-    s = np.sum(postWeights)
-    reset = False
-    if s == 0.0:
-        print("LOST ALL BELIEF.  STARTING OVER!!!!")
-        for particle in particles:
-            particle.Reset()
-        postWeights = np.ones(len(particles)) / len(particles)
-        s = np.sum(postWeights)
-        reset = True
+    median_weight = np.median(postWeights)
+    if median_weight < reset_belief_threshold:
+        print("Resetting belief for bad particles.")
+        for i, particle in enumerate(particles):
+            if postWeights[i] < reset_belief_threshold:
+                particle.Reset()
+                postWeights[i] = median_weight
 
+    s = np.sum(postWeights)
     postWeights = (1.0 / s) * postWeights
     return postWeights
 
@@ -159,7 +158,7 @@ def run_experiment(
         particle_qs = np.zeros((num_particles, 3))
         for i, particle in enumerate(particles):
             particle_qs[i, :] = particle.get_q()
-        
+
         particle_positions = particle_qs[:, 0:2]
         particle_headings = np.degrees(particle_qs[:, 2]) % 360
 
@@ -171,15 +170,15 @@ def run_experiment(
         dist_position = np.sqrt(np.sum(np.square(particle_positions - robot_position), axis=1))
         dist_heading = np.abs(particle_headings - robot_heading)
 
-        dist_heading 
+        dist_heading
 
-        perc_converge = np.sum(np.all([dist_heading < dist_angle_threshold, 
-                                       dist_position < dist_positon_threshold], 
+        perc_converge = np.sum(np.all([dist_heading < dist_angle_threshold,
+                                       dist_position < dist_positon_threshold],
                                       axis=0)) / num_particles
 
 
         if verbose:
-            print('avg dist_position = ', np.mean(dist_position), 
+            print('avg dist_position = ', np.mean(dist_position),
                   ' avg dist_heading = ', np.mean(dist_heading))
 
 
@@ -198,7 +197,7 @@ def run_experiment(
             if verbose:
                 print('Converged after ', step_count_converge, ' steps')
             converged = True
-        
+
 
         ## Automatic random movement
         movements = [(1, 0), (1, 0), (1, 0),
@@ -285,6 +284,7 @@ def main():
     num_rays = 8
     lidar_range = 100
     num_particles = 1000
+    reset_belief_threshold = 1e-6
 
     # TODO... PICK WHAT THE "REALITY" SHOULD SIMULATE:
     robot = Robot(
@@ -349,7 +349,7 @@ def main():
 
         # Correct the prediction/execute the measurement update.
         robot_sensor_reading = robot.Sensor()
-        weights = updateBelief(weights, particles, robot_sensor_reading)
+        weights = updateBelief(weights, particles, robot_sensor_reading, reset_belief_threshold)
         # Resample the particles.
         if 1.0 / np.sum(np.square(weights)) < len(particles) / 40.0:
             particles = resample(particles, weights, num_particles)
