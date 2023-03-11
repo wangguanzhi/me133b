@@ -132,8 +132,8 @@ def run_experiment(
     n_steps_kidnap=5,
     probCmd=0.8,
     probProximal=[0.9, 0.6, 0.3],
-    visual_on=False,
-    verbose=False,
+    visual_on=True,
+    verbose=True,
     max_iter=1000,
 ):
     time_start = time.time()
@@ -384,22 +384,22 @@ if __name__ == "__main__":
     ## Run this to see single trial experiment
     run_experiment()
 
-    # Mass experiment
-    n_runs = 1000
+    ## Mass experiment
+    # n_runs = 1000
 
-    res_all = np.zeros((n_runs, 3))
+    # res_all = np.zeros((n_runs, 3))
 
-    for i in range(n_runs):
+    # for i in range(n_runs):
 
-        print("run = ", i)
-        (
-            step_count_converge,
-            step_count_reset_belief,
-            step_count_reconverge,
-        ) = run_experiment(visual_on=False, verbose=False)
+    #     print("run = ", i)
+    #     (
+    #         step_count_converge,
+    #         step_count_reset_belief,
+    #         step_count_reconverge,
+    #     ) = run_experiment(visual_on=False, verbose=False)
 
-        res_all[i, 0] = step_count_converge
-        res_all[i, 1] = step_count_reset_belief
-        res_all[i, 2] = step_count_reconverge
+    #     res_all[i, 0] = step_count_converge
+    #     res_all[i, 1] = step_count_reset_belief
+    #     res_all[i, 2] = step_count_reconverge
 
-    np.save("KF_n" + str(n_runs) + ".npy", res_all)
+    # np.save("KF_n" + str(n_runs) + ".npy", res_all)

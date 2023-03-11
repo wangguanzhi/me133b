@@ -140,7 +140,7 @@ def updateBelief(priorWeights, particles, probSensor, sensor):
 #
 #    particles  List of particles
 #    weights    List of weights
-#    numParticles  Number of particles to resample
+#    n_particles  Number of particles to resample
 #
 def update_w(aveWeights, w_slow, w_fast, alpha_fast, alpha_slow, verbose=True):  # not used for right now
     # aveWeights = np.mean(weights)
@@ -162,23 +162,25 @@ def update_w(aveWeights, w_slow, w_fast, alpha_fast, alpha_slow, verbose=True): 
 def score_resample(
     particles,
     weights,
-    numParticles,
+    n_particles,
+    n_particles_factor,
     probCmd,
     probProximal,
     walls,
     aveWeights,
+    aveWeights_factor,
     prev_aveWeights,
 ):  # sample based on difference of performance
     new_particles = []
     new_weights = []
     for i in range(
-        int(numParticles / 5 * (prev_aveWeights - aveWeights) / prev_aveWeights)
+        int(n_particles / n_particles_factor * (prev_aveWeights - aveWeights) / prev_aveWeights)
     ):  # num of particles based on difference between previous weights and current weights
         new_particles.append(
             Robot(walls=walls, probCmd=probCmd, probProximal=probProximal)
         )  # random sample
         new_weights.append(
-            aveWeights / 2 + 0.00000000001
+            aveWeights / aveWeights_factor + 0.00000000001
         )  # weight is based on average weight
 
     n = 0
@@ -191,10 +193,10 @@ def score_resample(
     return new_particles, new_weights
 
 
-def KLD_resample(particles, weights, numParticles):  # resample based on KL distance
+def KLD_resample(particles, weights, n_particles):  # resample based on KL distance
     new_particles = []
     new_weights = []
-    indices = np.random.choice(len(weights), numParticles, p=weights)
+    indices = np.random.choice(len(weights), n_particles, p=weights)
     for index in indices:
         new_particles.append(particles[index].Copy())
         new_weights.append(weights[index])
@@ -228,9 +230,10 @@ def precomputeSensorProbability(drow, dcol, probProximal=[1.0]):
 
 
 def run_experiment(
-    numParticles=1000,
-    alpha_slow = 0.1,
-    alpha_fast = 0.5,
+    n_particles=1000,
+    resample_threshold_factor=2,
+    n_particles_factor=5,
+    aveWeights_factor=2,
     dist_converge_threshold=2,
     n_steps_kidnap=5,
     probCmd=0.8,
@@ -242,9 +245,13 @@ def run_experiment(
     
     w_slow = 0
     w_fast = 0
+    alpha_slow = 0.1
+    alpha_fast = 0.5
     aveWeights = 0
     prev_aveWeights = 0
     count = 1
+    
+    time_start = time.time()
     
     if visual_on:
         visual = Visualization(walls)
@@ -260,9 +267,9 @@ def run_experiment(
     # Start with a uniform belief over all particles.
     particles = [
         Robot(walls=walls, probCmd=probCmd, probProximal=probProximal)
-        for _ in range(numParticles)
+        for _ in range(n_particles)
     ]
-    weights = np.ones(numParticles) / numParticles
+    weights = np.ones(n_particles) / n_particles
 
     # The performance variables
     step_count_converge = 0
@@ -270,6 +277,7 @@ def run_experiment(
     step_count_reset_belief = -n_steps_kidnap
     converged = False
     belief_reset = False
+    n_particles_list = []
 
     # Loop continually.
     n_iter = 0
@@ -283,7 +291,7 @@ def run_experiment(
 
         for i, particle in enumerate(particles):
             bel[particle.row, particle.col] += weights[i]
-            # bel[particle.row, particle.col] += 1 / numParticles
+            # bel[particle.row, particle.col] += 1 / n_particles
 
         if visual_on:
             visual.Show(bel, robot.Position())
@@ -355,21 +363,26 @@ def run_experiment(
         w_slow, w_fast = update_w(aveWeights, w_slow, w_fast, alpha_fast, alpha_slow, verbose=verbose)
 
         # if the particles with high probability is discarded need sample more particles
-        if prev_aveWeights > 2 * aveWeights:
+        if prev_aveWeights > resample_threshold_factor * aveWeights:
             particles, weights = score_resample(
                 particles,
                 weights,
-                numParticles,
+                n_particles,
+                n_particles_factor,
                 probCmd,
                 probProximal,
                 walls,
                 aveWeights,
+                aveWeights_factor,
                 prev_aveWeights)
             
+            
         weights = (1.0 / np.sum(weights)) * weights
-        numParticles = computeN(particles, verbose=verbose)
-        particles, weights = KLD_resample(particles, weights, numParticles)
+        n_particles = computeN(particles, verbose=verbose)
+        particles, weights = KLD_resample(particles, weights, n_particles)
         weights = (1.0 / np.sum(weights)) * weights
+
+        n_particles_list.append(n_particles)
 
 
         if converged:
@@ -394,7 +407,7 @@ def run_experiment(
         step_count_reconverge,
     )
 
-    return step_count_converge, step_count_reset_belief, step_count_reconverge
+    return sum(n_particles_list), step_count_converge, step_count_reset_belief, step_count_reconverge, time.time() - time_start
 
 
 #
@@ -411,7 +424,7 @@ def main():
     # probCmd = 0.8
     # probProximal = [1.0]
     probProximal = [0.9, 0.6, 0.3]
-    numParticles = 1000
+    n_particles = 1000
     w_slow = 0
     w_fast = 0
     alpha_slow = 0.1
@@ -451,9 +464,9 @@ def main():
     # Start with a uniform belief over all particles.
     particles = [
         Robot(walls=walls, probCmd=probCmd, probProximal=probProximal)
-        for _ in range(numParticles)
+        for _ in range(n_particles)
     ]
-    weights = np.ones(numParticles) / numParticles
+    weights = np.ones(n_particles) / n_particles
 
     # Loop continually.
     while True:
@@ -472,7 +485,7 @@ def main():
 
         for i, particle in enumerate(particles):
             bel[particle.row, particle.col] += weights[i]
-            # bel[particle.row, particle.col] += 1 / numParticles
+            # bel[particle.row, particle.col] += 1 / n_particles
 
         visual.Show(bel, robot.Position())
 
@@ -560,7 +573,7 @@ def main():
             particles, weights = score_resample(
                 particles,
                 weights,
-                numParticles,
+                n_particles,
                 probCmd,
                 probProximal,
                 walls,
@@ -568,8 +581,8 @@ def main():
                 prev_aveWeights)
             
         weights = (1.0 / np.sum(weights)) * weights
-        numParticles = computeN(particles)
-        particles, weights = KLD_resample(particles, weights, numParticles)
+        n_particles = computeN(particles)
+        particles, weights = KLD_resample(particles, weights, n_particles)
         weights = (1.0 / np.sum(weights)) * weights
 
 
@@ -579,24 +592,24 @@ if __name__ == "__main__":
     # main()
 
     ## Run this to see single trial experiment
-    # run_experiment()
+    run_experiment()
 
     ## Mass experiment
-    n_runs = 100
-    ns_particles = [10, 50, 100, 500, 1000, 5000]
+    # n_runs = 100
+    # ns_particles = [10, 50, 100, 500, 1000, 5000]
 
-    res_all = np.zeros((n_runs, len(ns_particles), 3))
+    # res_all = np.zeros((n_runs, len(ns_particles), 3))
 
-    for i in range(n_runs):
-        for j, n_particles in enumerate(ns_particles):
+    # for i in range(n_runs):
+    #     for j, n_particles in enumerate(ns_particles):
 
-            print('run = ', i, ' n_particles = ', n_particles)
-            step_count_converge, step_count_reset_belief, step_count_reconverge = run_experiment(numParticles=n_particles,
-                                                                                                 visual_on=False,
-                                                                                                 verbose=False)
+    #         print('run = ', i, ' n_particles = ', n_particles)
+    #         step_count_converge, step_count_reset_belief, step_count_reconverge = run_experiment(n_particles=n_particles,
+    #                                                                                              visual_on=False,
+    #                                                                                              verbose=False)
 
-            res_all[i, j, 0] = step_count_converge
-            res_all[i, j, 1] = step_count_reset_belief
-            res_all[i, j, 2] = step_count_reconverge
+    #         res_all[i, j, 0] = step_count_converge
+    #         res_all[i, j, 1] = step_count_reset_belief
+    #         res_all[i, j, 2] = step_count_reconverge
 
-    np.save('AMCL_n' + str(n_runs) + '.npy', res_all)
+    # np.save('AMCL_n' + str(n_runs) + '.npy', res_all)

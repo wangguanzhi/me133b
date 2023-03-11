@@ -8,8 +8,8 @@ import particle as PF
 import continuous_particle as CPF
 
 
-multiprocessing_pool_count = 24
 
+multiprocessing_pool_count = 24
 
 ## istarmap function comes from:
 ##   https://stackoverflow.com/questions/57354700/starmap-combined-with-tqdm
@@ -51,42 +51,7 @@ def multiprocessing_wrapper(func, arguments):
     return results
 
 
-
-
-
-
-
 def test_kalman(n_runs, save_path):
-
-    ### Non Multiprocessing implementation 
-
-    # res_all = np.zeros((n_runs, 4))
-
-    # for i in range(n_runs):
-
-    #     print("[Kalman] run = ", i)
-
-    #     (
-    #         step_count_converge,
-    #         step_count_reset_belief,
-    #         step_count_reconverge,
-    #         runtime
-    #     ) = kalman.run_experiment(visual_on=False, verbose=False)
-
-    #     res_all[i, 0] = step_count_converge
-    #     res_all[i, 1] = step_count_reset_belief
-    #     res_all[i, 2] = step_count_reconverge
-    #     res_all[i, 3] = runtime
-
-    # print(res_all)
-
-    # print(np.mean(res_all[:, 3]))
-    # np.save(save_path, res_all)
-
-
-
-    
-    ### Multiprocessing implementation
 
     ## Define arguments
     dist_converge_threshold = 2
@@ -114,23 +79,114 @@ def test_kalman(n_runs, save_path):
     for i, result in enumerate(results):
         res_all[i, :] = np.array(result)
 
-    print(np.mean(res_all[:, 3]))
-    # np.save(save_path, res_all)
+    np.save(save_path, res_all)
 
 
+def test_PF(n_runs, ns_particles, resampling_constants, save_path):
 
-def test_PF():
+    ## Define arguments
+    dist_converge_threshold = 2
+    n_steps_kidnap = 5
+    probCmd = 0.8
+    probProximal = [0.9, 0.6, 0.3]
+    visual_on = False
+    verbose = False
+    max_iter = 1000
 
-    pass
+    ## Run experiment with multiprocessing
+    res_all = np.zeros((n_runs, len(ns_particles), len(resampling_constants), 4))
+
+    for a, n_particles in enumerate(ns_particles):
+        for b, resampling_constant in enumerate(resampling_constants):
+
+            print("n_particles = ", n_particles, " resampling_constant = ", resampling_constant)
+
+            ## Format arguments
+            arguments = []
+
+            for i in range(n_runs):
+                arguments.append((
+                    n_particles,
+                    resampling_constant,
+                    dist_converge_threshold,
+                    n_steps_kidnap,
+                    probCmd,
+                    probProximal,
+                    visual_on,
+                    verbose,
+                    max_iter))
+
+            ## Run experiment with multiprocessing
+            results = multiprocessing_wrapper(PF.run_experiment, arguments)
+
+            ## Process results
+            for i, result in enumerate(results):
+                res_all[i, a, b, :] = np.array(result)
+
+    np.save(save_path, res_all)
 
 
-def test_AMCL():
+def test_AMCL(n_runs, 
+              ns_particles, 
+              resample_threshold_factors, 
+              n_particles_factors, 
+              aveWeights_factors, 
+              save_path):
 
-    pass
+    ## Define arguments
+    dist_converge_threshold = 2
+    n_steps_kidnap = 5
+    probCmd = 0.8
+    probProximal = [0.9, 0.6, 0.3]
+    visual_on = False
+    verbose = False
+    max_iter = 1000
+
+    ## Run experiment with multiprocessing
+    res_all = np.zeros((n_runs, 
+                        len(ns_particles), 
+                        len(resample_threshold_factors),
+                        len(n_particles_factors),
+                        len(aveWeights_factor), 5))
+
+    for a, n_particles in enumerate(ns_particles):
+        for b, resample_threshold_factor in enumerate(resample_threshold_factors):
+            for c, n_particles_factor in enumerate(n_particles_factors):
+                for d, aveWeights_factor in enumerate(aveWeights_factors):
+                    
+                    print("n_particles = ", n_particles, 
+                          " resample_threshold_factor = ", resample_threshold_factor,
+                          " n_particles_factor = ", n_particles_factor,
+                          " aveWeights_factor = ", aveWeights_factor)
+
+                    ## Format arguments
+                    arguments = []
+
+                    for i in range(n_runs):
+                        arguments.append((
+                            n_particles,
+                            resample_threshold_factor,
+                            n_particles_factor,
+                            aveWeights_factor,
+                            dist_converge_threshold,
+                            n_steps_kidnap,
+                            probCmd,
+                            probProximal,
+                            visual_on,
+                            verbose,
+                            max_iter))
+
+                    ## Run experiment with multiprocessing
+                    results = multiprocessing_wrapper(AMCL.run_experiment, arguments)
+
+                    ## Process results
+                    for i, result in enumerate(results):
+                        res_all[i, a, b, c, d, :] = np.array(result)
+
+    np.save(save_path, res_all)
 
 
 def test_CPF():
-
     pass
 
 
@@ -154,11 +210,30 @@ if __name__ == '__main__':
 
 
     ## Test Kalman filter
-    n_runs = 100
-    save_path = 'kalman_n' + str(n_runs) + '.npy'
-    test_kalman(n_runs, save_path)
+    # n_runs = 1000
+    # save_path = 'kalman_n' + str(n_runs) + '.npy'
+    # test_kalman(n_runs, save_path)
 
+    ## Test Particle filter
+    # n_runs = 1000
+    # ns_particles = [10, 50, 100, 500, 1000, 5000]
+    # resampling_constants = [2, 5, 10, 20, 50]
+    # save_path = 'PF_n' + str(n_runs) + '.npy'
+    # test_PF(n_runs, ns_particles, resampling_constants, save_path)
 
+    ## Test Adaptive Monte Carlo
+    n_runs = 1000
+    ns_particles = [10, 50, 100, 500]
+    resample_threshold_factors = []
+    n_particles_factors = []
+    aveWeights_factors = [] 
+    save_path = 'AMCL_n' + str(n_runs) + '.npy'
+    test_PF(n_runs, 
+            ns_particles, 
+            resample_threshold_factors, 
+            n_particles_factors, 
+            aveWeights_factors, 
+            save_path)
     
 
     

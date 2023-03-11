@@ -135,6 +135,7 @@ def precomputeSensorProbability(drow, dcol, probProximal=[1.0]):
 
 def run_experiment(
     numParticles=1000,
+    resampling_constant=2.0,
     dist_converge_threshold=2,
     n_steps_kidnap=5,
     probCmd=0.8,
@@ -143,6 +144,7 @@ def run_experiment(
     verbose=True,
     max_iter=1000,
 ):
+    time_start = time.time()
 
     if visual_on:
         visual = Visualization(walls)
@@ -248,7 +250,7 @@ def run_experiment(
                 break
 
         # Resample the particles.
-        if 1.0 / np.sum(np.square(weights)) < len(particles) / 2.0:
+        if 1.0 / np.sum(np.square(weights)) < len(particles) / resampling_constant:
             # if verbose:
             #     print('Resampling')
             particles = resample(particles, weights, numParticles)
@@ -267,16 +269,17 @@ def run_experiment(
                 print("Kidnapping")
             robot.Reset()
 
-    print(
-        "[Particle Filter] step_count_converge = ",
-        step_count_converge,
-        " step_count_reset_belief = ",
-        step_count_reset_belief,
-        " step_count_reconverge = ",
-        step_count_reconverge,
-    )
+    if verbose:
+        print(
+            "[Particle Filter] step_count_converge = ",
+            step_count_converge,
+            " step_count_reset_belief = ",
+            step_count_reset_belief,
+            " step_count_reconverge = ",
+            step_count_reconverge,
+        )
 
-    return step_count_converge, step_count_reset_belief, step_count_reconverge
+    return step_count_converge, step_count_reset_belief, step_count_reconverge, time.time() - time_start
 
 
 #
