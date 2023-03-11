@@ -137,6 +137,7 @@ class Robot:
         sensor_noise=0.1,
         num_rays=360,
         lidar_range=100,
+        step_size=4,
         verbose=False,
     ):
         self.walls = walls
@@ -170,6 +171,7 @@ class Robot:
         self.sensor_noise = sensor_noise
         self.num_rays = num_rays
         self.lidar_range = lidar_range
+        self.step_size = step_size
 
         # Pick a valid starting location (if not already given).
         if row >= self.height or col >= self.width or self.walls[row, col]:
@@ -214,7 +216,7 @@ class Robot:
         hit = False
         if abs(slope) <= 1:
             if xc <= x:
-                for i in range(xc, x + 1):
+                for i in range(xc, x + 1, self.step_size):
                     j = round(yc + slope * (i - xc))
                     col = i
                     row = self.height - j
@@ -228,7 +230,7 @@ class Robot:
                         hit = True
                         break
             else:
-                for i in range(xc, x - 1, -1):
+                for i in range(xc, x - 1, -self.step_size):
                     j = round(yc + slope * (i - xc))
                     col = i
                     row = self.height - j
@@ -243,7 +245,7 @@ class Robot:
                         break
         else:
             if yc <= y:
-                for j in range(yc, y + 1):
+                for j in range(yc, y + 1, self.step_size):
                     i = round(xc + (j - yc) / slope)
                     col = i
                     row = self.height - j
@@ -257,7 +259,7 @@ class Robot:
                         hit = True
                         break
             else:
-                for j in range(yc, y - 1, -1):
+                for j in range(yc, y - 1, -self.step_size):
                     i = round(xc + (j - yc) / slope)
                     col = i
                     row = self.height - j
@@ -291,7 +293,7 @@ class Robot:
             distance = 2 * self.lidar_range
             if abs(slope) <= 1:
                 if xc <= x:
-                    for i in range(xc, x + 1):
+                    for i in range(xc, x + 1, self.step_size):
                         j = round(yc + slope * (i - xc))
                         col = i
                         row = self.height - j
@@ -299,7 +301,7 @@ class Robot:
                             distance = np.sqrt((xc - i) ** 2 + (yc - j) ** 2)
                             break
                 else:
-                    for i in range(xc, x - 1, -1):
+                    for i in range(xc, x - 1, -self.step_size):
                         j = round(yc + slope * (i - xc))
                         col = i
                         row = self.height - j
@@ -308,7 +310,7 @@ class Robot:
                             break
             else:
                 if yc <= y:
-                    for j in range(yc, y + 1):
+                    for j in range(yc, y + 1, self.step_size):
                         i = round(xc + (j - yc) / slope)
                         col = i
                         row = self.height - j
@@ -316,7 +318,7 @@ class Robot:
                             distance = np.sqrt((xc - i) ** 2 + (yc - j) ** 2)
                             break
                 else:
-                    for j in range(yc, y - 1, -1):
+                    for j in range(yc, y - 1, -self.step_size):
                         i = round(xc + (j - yc) / slope)
                         col = i
                         row = self.height - j
