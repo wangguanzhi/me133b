@@ -61,9 +61,12 @@ def updateBelief(priorWeights, particles, robot_sensor_reading, sensor_diff_powe
 
     postWeights = priorWeights * weights
 
+    reset = False
     # # Normalize.
     median_weight = np.median(postWeights)
     if median_weight < reset_belief_threshold:
+
+        reset = True
         if verbose:
             print("Resetting belief for bad particles.")
 
@@ -74,7 +77,7 @@ def updateBelief(priorWeights, particles, robot_sensor_reading, sensor_diff_powe
 
     s = np.sum(postWeights)
     postWeights = (1.0 / s) * postWeights
-    return postWeights
+    return postWeights, reset
 
 
     # Normalize.
@@ -172,22 +175,19 @@ def run_experiment(
         ## Check convergence
         robot_q = robot.get_q()
         robot_position = robot_q[0:2]
-        robot_heading = np.degrees(robot_q[2]) % 360
+        robot_heading = robot_q[2]
 
         particle_qs = np.zeros((n_particles, 3))
         for i, particle in enumerate(particles):
             particle_qs[i, :] = particle.get_q()
 
         particle_positions = particle_qs[:, 0:2]
-        particle_headings = np.degrees(particle_qs[:, 2]) % 360
+        particle_headings = particle_qs[:, 2]
 
         ## TODO: May need to improve angle difference calculation here
-
-
         dist_position = np.sqrt(np.sum(np.square(particle_positions - robot_position), axis=1))
-        dist_heading = np.abs(particle_headings - robot_heading)
-
-        dist_heading
+        dist_heading = particle_headings - robot_heading
+        dist_heading = np.abs(np.degrees(np.arctan2(np.sin(dist_heading), np.cos(dist_heading))))
 
         perc_converge = np.sum(np.all([dist_heading < dist_angle_threshold,
                                        dist_position < dist_positon_threshold],
@@ -247,7 +247,10 @@ def run_experiment(
 
         # Correct the prediction/execute the measurement update.
         robot_sensor_reading = robot.Sensor()
-        weights = updateBelief(weights, particles, robot_sensor_reading, sensor_diff_power, reset_belief_threshold, verbose=verbose)
+        weights, reset = updateBelief(weights, particles, robot_sensor_reading, sensor_diff_power, reset_belief_threshold, verbose=verbose)
+
+        if reset and converged:    
+            belief_reset = True
 
         # Resample the particles.
         if 1.0 / np.sum(np.square(weights)) < len(particles) / resampling_constant:

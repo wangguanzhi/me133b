@@ -1,3 +1,4 @@
+import time
 import tqdm
 import numpy as np
 import multiprocessing.pool as mpp
@@ -9,7 +10,7 @@ import continuous_particle as CPF
 
 
 
-multiprocessing_pool_count = 24
+multiprocessing_pool_count = 16
 
 ## istarmap function comes from:
 ##   https://stackoverflow.com/questions/57354700/starmap-combined-with-tqdm
@@ -49,6 +50,21 @@ def multiprocessing_wrapper(func, arguments):
             results.append(result)
 
     return results
+
+
+def multiprocessing_wrapper_async(func, arguments):
+
+    results = []
+
+    with mpp.Pool(multiprocessing_pool_count) as pool:
+        try:
+            for result in pool.starmap_async(func, arguments).get(timeout=1800): ## 30 minute timeout
+                results.append(result)
+        except:
+            print('Timeout')
+
+    return results
+
 
 
 def test_kalman(n_runs, save_path):
@@ -123,7 +139,7 @@ def test_PF(n_runs, ns_particles, resampling_constants, save_path):
             for i, result in enumerate(results):
                 res_all[i, a, b, :] = np.array(result)
 
-    np.save(save_path, res_all)
+    # np.save(save_path, res_all)
 
 
 def test_AMCL(n_runs, 
@@ -196,14 +212,14 @@ def test_CPF(n_runs,
              save_path):
 
     ## Define arguments
-    dist_positon_threshold = 100
+    dist_positon_threshold = 50
     dist_angle_threshold = 5
     n_steps_kidnap = 5
     cmd_noise = 0.1
     sensor_noise = 0.0
     visual_on = False
     verbose = False
-    max_iter = 1000
+    max_iter = 500
 
     ## Run experiment with multiprocessing
     res_all = np.zeros((n_runs, 
@@ -248,12 +264,14 @@ def test_CPF(n_runs,
                                     verbose,
                                     max_iter))
 
+                            
                             ## Run experiment with multiprocessing
-                            results = multiprocessing_wrapper(CPF.run_experiment, arguments)
+                            results = multiprocessing_wrapper_async(CPF.run_experiment, arguments)
 
-                            ## Process results
-                            for i, result in enumerate(results):
-                                res_all[i, a, b, c, d, e, f, :] = np.array(result)
+                            if len(results):
+                                ## Process results
+                                for i, result in enumerate(results):
+                                    res_all[i, a, b, c, d, e, f, :] = np.array(result)
 
     np.save(save_path, res_all)
 
@@ -294,21 +312,21 @@ if __name__ == '__main__':
     
     ## Test continuous Particle filter
     n_runs = 100
-    # ns_particles = [100, 500, 1000, 5000]
-    # lidar_ranges = [50, 150, 300]
-    # ns_rays = [8, 12, 20]
-    resampling_constants = [5, 10, 20, 40]
-    sensor_diff_powers = [1, 1.5, 2]
-    reset_belief_thresholds = [1e-6, 1e-8, 1e-10]
+    ns_particles = [100, 500, 1000, 2000]
+    lidar_ranges = [50, 150, 300]
+    ns_rays = [8, 12, 20]
+    # resampling_constants = [5, 10, 20, 40]
+    # sensor_diff_powers = [1, 1.5, 2]
+    # reset_belief_thresholds = [1e-6, 1e-8, 1e-10]
 
-    ns_particles = [1000]
-    lidar_ranges = [150]
-    ns_rays = [8]
-    # resampling_constants = [10]
-    # sensor_diff_powers = [2]
-    # reset_belief_thresholds = [1e-8]
+    # ns_particles = [1000]
+    # lidar_ranges = [150]
+    # ns_rays = [8]
+    resampling_constants = [10]
+    sensor_diff_powers = [2]
+    reset_belief_thresholds = [1e-6]
 
-    save_path = 'CPF_n' + str(n_runs) + '_1.npy'
+    save_path = 'CPF_n' + str(n_runs) + '_2.npy'
     test_CPF(n_runs, 
              ns_particles,
              lidar_ranges,
