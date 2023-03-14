@@ -11,7 +11,7 @@ import numpy as np
 import scipy.stats
 import matplotlib as mpl
 
-mpl.use("macosx")
+# mpl.use("macosx")
 from AMCL_utilities import Visualization, Robot
 
 
@@ -80,7 +80,7 @@ def computeN(particles, verbose=True):
     epsilon = 0.02  # K-L distance difference bound
 
     if k == 1:
-        n = 0
+        n = 1
     
     else:
         n = (

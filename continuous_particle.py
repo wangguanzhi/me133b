@@ -169,6 +169,9 @@ def run_experiment(
     while n_iter < max_iter:
         # Show the current belief.  Also show the actual position.
 
+        if not converged or (step_count_reconverge >= 0):
+            n_iter += 1
+
         if visual_on:
             visual.Show(robot=robot, particles=particles, particle_weights=weights)
 

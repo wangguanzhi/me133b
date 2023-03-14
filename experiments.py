@@ -7,10 +7,11 @@ import AMCL
 import kalman
 import particle as PF
 import continuous_particle as CPF
+import continuous_AMCL as CAMCL
 
 
 
-multiprocessing_pool_count = 16
+multiprocessing_pool_count = 24
 
 ## istarmap function comes from:
 ##   https://stackoverflow.com/questions/57354700/starmap-combined-with-tqdm
@@ -276,18 +277,84 @@ def test_CPF(n_runs,
     np.save(save_path, res_all)
 
 
-def test_CAMCL():
-    pass
+def test_CAMCL(
+    n_runs,
+    sensor_diff_powers,
+    weight_coefs,
+    aveWeights_factors,
+    score_coefs,
+    save_path):
+    
+    ## Define arguments
+    n_particles = 1000
+    lidar_range = 150
+    n_rays = 8
+    dist_positon_threshold = 50
+    dist_angle_threshold = 5
+    n_steps_kidnap = 5
+    cmd_noise = 0.1
+    sensor_noise = 0.0
+    visual_on = False
+    verbose = False
+    max_iter = 500
+
+     ## Run experiment with multiprocessing
+    res_all = np.zeros((n_runs, 
+                        len(sensor_diff_powers), 
+                        len(weight_coefs),
+                        len(aveWeights_factors),
+                        len(score_coefs), 5))
+    
+    for a, sensor_diff_power in enumerate(sensor_diff_powers):
+        for b, weight_coef in enumerate(weight_coefs):
+            for c, aveWeights_factor in enumerate(aveWeights_factors):
+                for d, score_coef in enumerate(score_coefs):
+                    print("sensor_diff_power = ", sensor_diff_power, 
+                          "weight_coef = ", weight_coef,
+                          "aveWeights_factor = ", aveWeights_factor,
+                          " score_coef = ", score_coef)
+
+                    ## Format arguments
+                    arguments = []
+
+                    for i in range(n_runs):
+                        arguments.append((
+                            n_particles,
+                            lidar_range,
+                            n_rays,
+                            sensor_diff_power,
+                            weight_coef,
+                            aveWeights_factor,
+                            score_coef,
+                            dist_positon_threshold,
+                            dist_angle_threshold,
+                            n_steps_kidnap,
+                            cmd_noise,
+                            sensor_noise,
+                            visual_on,
+                            verbose,
+                            max_iter))
+
+                            
+                    ## Run experiment with multiprocessing
+                    results = multiprocessing_wrapper_async(CAMCL.run_experiment, arguments)
+
+                    if len(results):
+                        ## Process results
+                        for i, result in enumerate(results):
+                            res_all[i, a, b, c, d :] = np.array(result)
+
+    np.save(save_path, res_all)
+
 
 
 if __name__ == '__main__':
-
-
 
     ## Test Kalman filter
     # n_runs = 1000
     # save_path = 'kalman_n' + str(n_runs) + '.npy'
     # test_kalman(n_runs, save_path)
+
 
     ## Test Particle filter
     # n_runs = 1000
@@ -295,6 +362,7 @@ if __name__ == '__main__':
     # resampling_constants = [2, 5, 10, 20, 50]
     # save_path = 'PF_n' + str(n_runs) + '.npy'
     # test_PF(n_runs, ns_particles, resampling_constants, save_path)
+
 
     ## Test Adaptive Monte Carlo
     # n_runs = 1000
@@ -310,28 +378,46 @@ if __name__ == '__main__':
     #           aveWeights_factors, 
     #           save_path)
     
+
     ## Test continuous Particle filter
-    n_runs = 100
-    ns_particles = [100, 500, 1000, 2000]
-    lidar_ranges = [50, 150, 300]
-    ns_rays = [8, 12, 20]
+    # n_runs = 100
+    # ns_particles = [100, 500, 1000, 2000]
+    # lidar_ranges = [50, 150, 300]
+    # ns_rays = [8, 12, 20]
     # resampling_constants = [5, 10, 20, 40]
     # sensor_diff_powers = [1, 1.5, 2]
-    # reset_belief_thresholds = [1e-6, 1e-8, 1e-10]
+    # reset_belief_thresholds = [1e-4, 1e-6, 1e-8]
 
     # ns_particles = [1000]
     # lidar_ranges = [150]
     # ns_rays = [8]
-    resampling_constants = [10]
-    sensor_diff_powers = [2]
-    reset_belief_thresholds = [1e-6]
+    # resampling_constants = [10]
+    # sensor_diff_powers = [2]
+    # reset_belief_thresholds = [1e-6]
 
-    save_path = 'CPF_n' + str(n_runs) + '_2.npy'
-    test_CPF(n_runs, 
-             ns_particles,
-             lidar_ranges,
-             ns_rays,
-             resampling_constants, 
-             sensor_diff_powers, 
-             reset_belief_thresholds, 
-             save_path)
+    # save_path = 'CPF_n' + str(n_runs) + '_1.npy'
+    # test_CPF(n_runs, 
+    #          ns_particles,
+    #          lidar_ranges,
+    #          ns_rays,
+    #          resampling_constants, 
+    #          sensor_diff_powers, 
+    #          reset_belief_thresholds, 
+    #          save_path)
+    
+
+    ## Test continuous Adaptive Monte Carlo
+    n_runs = 100
+
+    sensor_diff_powers = [1, 1.5, 2]
+    weight_coefs = [1.5, 2, 2.5]
+    aveWeights_factors = [1.5, 2, 2.5]
+    score_coefs = [1, 2.5, 5]
+    
+    save_path = 'CAMCL_n' + str(n_runs) + '.npy'
+    test_CAMCL(n_runs,
+               sensor_diff_powers,
+               weight_coefs,
+               aveWeights_factors,
+               score_coefs,
+               save_path)
