@@ -361,7 +361,7 @@ def run_experiment(
         particles, weights = KLD_resample(particles, weights, numParticles)
         weights = (1.0 / np.sum(weights)) * weights
 
-        n_particles_list.append(n_particles)
+        n_particles_list.append(numParticles)
 
         if converged:
             step_count_reconverge += 1
