@@ -123,16 +123,17 @@ def updateBelief(priorWeights, particles, probSensor, sensor):
 
     # Normalize.
     s = np.sum(postWeights)
-    reset = False
+    # reset = False
     if s == 0.0:
         for particle in particles:
             particle.Reset()
         postWeights = np.ones(len(particles)) / len(particles)
         s = np.sum(postWeights)
-        reset = True
+        # reset = True
 
     postWeights = (1.0 / s) * postWeights
-    return postWeights, reset
+
+    return postWeights
 
 
 #
@@ -349,19 +350,14 @@ def run_experiment(
         ]
         probSensors = [probUp, probRight, probDown, probLeft]
         for probSensor, sensor in zip(probSensors, sensors):
-            weights, reset = updateBelief(weights, particles, probSensor, sensor)
-            if reset:
-                if verbose:
-                    print("LOST ALL BELIEF.  STARTING OVER!!!!")
-                if converged:
-                    belief_reset = True
-                break
+            weights = updateBelief(weights, particles, probSensor, sensor)
 
         prev_aveWeights = (prev_aveWeights + aveWeights) / 2
         count = count + 1
         aveWeights = np.mean(weights)
         w_slow, w_fast = update_w(aveWeights, w_slow, w_fast, alpha_fast, alpha_slow, verbose=verbose)
 
+        reset = False
         # if the particles with high probability is discarded need sample more particles
         if prev_aveWeights > resample_threshold_factor * aveWeights:
             particles, weights = score_resample(
@@ -375,6 +371,11 @@ def run_experiment(
                 aveWeights,
                 aveWeights_factor,
                 prev_aveWeights)
+        
+            reset = True
+
+        if reset and converged:
+            belief_reset = True
             
             
         weights = (1.0 / np.sum(weights)) * weights

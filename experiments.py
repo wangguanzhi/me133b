@@ -163,18 +163,18 @@ def test_AMCL(n_runs,
     res_all = np.zeros((n_runs, 
                         len(ns_particles), 
                         len(resample_threshold_factors),
-                        len(n_particles_factors),
-                        len(aveWeights_factors), 5))
+                        len(aveWeights_factors), 
+                        len(n_particles_factors),5))
 
     for a, n_particles in enumerate(ns_particles):
         for b, resample_threshold_factor in enumerate(resample_threshold_factors):
-            for c, n_particles_factor in enumerate(n_particles_factors):
-                for d, aveWeights_factor in enumerate(aveWeights_factors):
+            for c, aveWeights_factor in enumerate(aveWeights_factors):
+                for d, n_particles_factor in enumerate(n_particles_factors):
                     
                     print("n_particles = ", n_particles, 
                           " resample_threshold_factor = ", resample_threshold_factor,
-                          " n_particles_factor = ", n_particles_factor,
-                          " aveWeights_factor = ", aveWeights_factor)
+                          " aveWeights_factor = ", aveWeights_factor,
+                          " n_particles_factor = ", n_particles_factor)
 
                     ## Format arguments
                     arguments = []
@@ -364,19 +364,19 @@ if __name__ == '__main__':
     # test_PF(n_runs, ns_particles, resampling_constants, save_path)
 
 
-    ## Test Adaptive Monte Carlo
-    # n_runs = 1000
-    # ns_particles = [10, 100, 1000]
-    # resample_threshold_factors = [1.2, 1.5, 2, 2.5]
-    # n_particles_factors = [1, 2.5, 5]
-    # aveWeights_factors = [1, 1.5, 2, 3] 
-    # save_path = 'AMCL_n' + str(n_runs) + '.npy'
-    # test_AMCL(n_runs, 
-    #           ns_particles, 
-    #           resample_threshold_factors, 
-    #           n_particles_factors, 
-    #           aveWeights_factors, 
-    #           save_path)
+    # Test Adaptive Monte Carlo
+    n_runs = 1000
+    ns_particles = [500]
+    resample_threshold_factors = [1, 1.2, 1.5, 2, 2.5]
+    n_particles_factors = [0.5, 1, 2.5, 5]
+    aveWeights_factors = [0.5, 0.8, 1, 1.5, 2, 3] 
+    save_path = 'AMCL_n' + str(n_runs) + '_new.npy'
+    test_AMCL(n_runs, 
+              ns_particles, 
+              resample_threshold_factors, 
+              n_particles_factors, 
+              aveWeights_factors, 
+              save_path)
     
 
     ## Test continuous Particle filter
@@ -407,17 +407,17 @@ if __name__ == '__main__':
     
 
     ## Test continuous Adaptive Monte Carlo
-    n_runs = 100
+    # n_runs = 100
 
-    sensor_diff_powers = [1, 1.5, 2]
-    weight_coefs = [1.5, 2, 2.5]
-    aveWeights_factors = [1.5, 2, 2.5]
-    score_coefs = [1, 2.5, 5]
+    # sensor_diff_powers = [1, 1.5, 2]
+    # weight_coefs = [1.5, 2, 2.5]
+    # aveWeights_factors = [1.5, 2, 2.5]
+    # score_coefs = [1, 2.5, 5]
     
-    save_path = 'CAMCL_n' + str(n_runs) + '.npy'
-    test_CAMCL(n_runs,
-               sensor_diff_powers,
-               weight_coefs,
-               aveWeights_factors,
-               score_coefs,
-               save_path)
+    # save_path = 'CAMCL_n' + str(n_runs) + '.npy'
+    # test_CAMCL(n_runs,
+    #            sensor_diff_powers,
+    #            weight_coefs,
+    #            aveWeights_factors,
+    #            score_coefs,
+    #            save_path)
