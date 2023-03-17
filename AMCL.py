@@ -164,7 +164,7 @@ def score_resample(
     particles,
     weights,
     n_particles,
-    n_particles_factor,
+    score_coef,
     probCmd,
     probProximal,
     walls,
@@ -175,7 +175,7 @@ def score_resample(
     new_particles = []
     new_weights = []
     for i in range(
-        int(n_particles / n_particles_factor * (prev_aveWeights - aveWeights) / prev_aveWeights)
+        int(n_particles / score_coef * (prev_aveWeights - aveWeights) / prev_aveWeights)
     ):  # num of particles based on difference between previous weights and current weights
         new_particles.append(
             Robot(walls=walls, probCmd=probCmd, probProximal=probProximal)
@@ -232,8 +232,8 @@ def precomputeSensorProbability(drow, dcol, probProximal=[1.0]):
 
 def run_experiment(
     n_particles=1000,
-    resample_threshold_factor=2,
-    n_particles_factor=5,
+    weight_coef=2,
+    score_coef=5,
     aveWeights_factor=2,
     dist_converge_threshold=2,
     n_steps_kidnap=5,
@@ -359,12 +359,12 @@ def run_experiment(
 
         reset = False
         # if the particles with high probability is discarded need sample more particles
-        if prev_aveWeights > resample_threshold_factor * aveWeights:
+        if prev_aveWeights > weight_coef * aveWeights:
             particles, weights = score_resample(
                 particles,
                 weights,
                 n_particles,
-                n_particles_factor,
+                score_coef,
                 probCmd,
                 probProximal,
                 walls,
